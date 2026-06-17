@@ -5,12 +5,23 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var model: PanelViewModel
     @ObservedObject var store: ClipStore
+    @StateObject private var settings: AppSettings
+
+    init(model: PanelViewModel, store: ClipStore) {
+        self.model = model
+        self.store = store
+        _settings = StateObject(wrappedValue: AppSettings(store: store))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider().opacity(0.5)
-            cards
+            if model.showSettings {
+                SettingsView(settings: settings, store: store)
+            } else {
+                cards
+            }
             footer
         }
         .background(VisualEffectBackground(material: .hudWindow, blending: .behindWindow))
@@ -29,24 +40,37 @@ struct ContentView: View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "doc.on.clipboard.fill").foregroundStyle(Theme.accent)
-                Text("Ditto").font(.system(size: 14, weight: .bold, design: .rounded))
+                Text(model.showSettings ? "Settings" : "Ditto")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
             }
 
-            categoryChips
+            if !model.showSettings { categoryChips }
 
             Spacer()
 
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
-                TextField("Search", text: $model.query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .frame(width: 180)
-                    .onChange(of: model.query) { _ in model.resetSelection() }
+            if !model.showSettings {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
+                    TextField("Search", text: $model.query)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .frame(width: 180)
+                        .onChange(of: model.query) { _ in model.resetSelection() }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.07), in: Capsule())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.primary.opacity(0.07), in: Capsule())
+
+            Button {
+                model.showSettings.toggle()
+            } label: {
+                Image(systemName: model.showSettings ? "xmark.circle.fill" : "gearshape.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(model.showSettings ? Color.secondary : Theme.accent)
+            }
+            .buttonStyle(.plain)
+            .help(model.showSettings ? "Close settings" : "Settings")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -155,21 +179,34 @@ struct ContentView: View {
 
     // MARK: Footer
 
+    @ViewBuilder
     private var footer: some View {
-        HStack(spacing: 16) {
-            hint("←→", "Navigate")
-            hint("↩", "Paste")
-            hint("⌘1–9", "Quick paste")
-            hint("⌘P", "Pin")
-            hint("⌫", "Delete")
-            hint("esc", "Close")
-            Spacer()
-            Text("\(model.results.count) item\(model.results.count == 1 ? "" : "s")")
-                .font(.system(size: 11)).foregroundStyle(.tertiary)
+        if model.showSettings {
+            HStack(spacing: 16) {
+                hint("esc", "Back")
+                Spacer()
+                Text("Ditto · ⌃⌥⌘V").font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.primary.opacity(0.04))
+        } else {
+            HStack(spacing: 14) {
+                hint("←→", "Navigate")
+                hint("↩", "Paste")
+                hint("⌘C", "Copy")
+                hint("⌘1–9", "Quick paste")
+                hint("⌘P", "Pin")
+                hint("⌘⌫", "Delete")
+                hint("esc", "Close")
+                Spacer()
+                Text("\(model.results.count) item\(model.results.count == 1 ? "" : "s")")
+                    .font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.primary.opacity(0.04))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color.primary.opacity(0.04))
     }
 
     private func hint(_ key: String, _ label: String) -> some View {

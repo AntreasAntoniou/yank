@@ -15,6 +15,8 @@ final class PanelViewModel: ObservableObject {
     /// Mouse clicks deliberately do NOT set this — a clicked card is already
     /// under the cursor, so re-centering it would feel like lag.
     @Published var scrollRequest: Int = 0
+    /// When true the bar shows the settings surface instead of the card strip.
+    @Published var showSettings: Bool = false
 
     let store: ClipStore
 
@@ -29,6 +31,8 @@ final class PanelViewModel: ObservableObject {
     var onPaste: ((ClipItem, _ plain: Bool) -> Void)?
     /// Invoked when the user dismisses the bar (Esc).
     var onClose: (() -> Void)?
+    /// Invoked to copy a clip onto the system clipboard without pasting (⌘C/⌃C).
+    var onCopy: ((ClipItem) -> Void)?
 
     init(store: ClipStore) {
         self.store = store
@@ -69,6 +73,12 @@ final class PanelViewModel: ObservableObject {
         let r = results
         guard r.indices.contains(selection) else { return }
         onPaste?(r[selection], plain)
+    }
+
+    func copySelection() {
+        let r = results
+        guard r.indices.contains(selection) else { return }
+        onCopy?(r[selection])
     }
 
     func deleteSelection() {

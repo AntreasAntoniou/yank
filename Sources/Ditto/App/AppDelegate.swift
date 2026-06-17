@@ -111,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupPanel() {
         model.onPaste = { [weak self] item, plain in self?.commit(item, plain: plain) }
         model.onClose = { [weak self] in self?.hide(paste: false) }
+        model.onCopy = { [weak self] item in self?.copyToClipboard(item) }
         panel.onResignKey = { [weak self] in
             guard let self, self.isVisible, !self.isClosing else { return }
             self.hide(paste: false)
@@ -139,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.query = ""
         model.activeKind = nil
         model.pinnedOnly = false
+        model.showSettings = false
         model.resetSelection()
         model.presentToken &+= 1
         isVisible = true
@@ -178,13 +180,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hide(paste: canPaste)
     }
 
+    /// Copy a clip onto the system clipboard without pasting, then dismiss so the
+    /// chosen clip is ready to paste manually elsewhere.
+    private func copyToClipboard(_ item: ClipItem) {
+        store.markUsed(item)
+        monitor.suppressNextChange()
+        Paster.writeToPasteboard(item, store: store)
+        Feedback.playCapture()
+        hide(paste: false)
+    }
+
     // MARK: Keyboard
 
     private func handleKey(_ event: NSEvent) -> NSEvent? {
         let cmd = event.modifierFlags.contains(.command)
+        let control = event.modifierFlags.contains(.control)
         // Holding Option at commit time requests "paste as plain text" — the
         // clip is written without its RTF representation (⌥↩ or ⌥+⌘1–9).
         let plain = event.modifierFlags.contains(.option)
+
+        // In settings, let the controls handle keys; only intercept Esc (which
+        // returns to the clipboard view rather than dismissing the bar).
+        if model.showSettings {
+            if Int(event.keyCode) == kVK_Escape { model.showSettings = false; return nil }
+            return event
+        }
+
         switch Int(event.keyCode) {
         case kVK_Escape:
             hide(paste: false); return nil
@@ -196,6 +217,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return nil
         case kVK_Return, kVK_ANSI_KeypadEnter:
             model.commitSelection(plain: plain); return nil
+        case kVK_ANSI_C where cmd || control:
+            // Copy the selected clip onto the system clipboard without pasting.
+            model.copySelection(); return nil
         case kVK_Delete where cmd:
             model.deleteSelection(); return nil
         case kVK_ANSI_P where cmd:
@@ -256,26 +280,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func toggleLaunchAtLogin() {
-        setLaunchAtLogin(!launchAtLoginEnabled)
+        LoginItem.set(!LoginItem.enabled)
         rebuildMenu()
     }
 
-    private var launchAtLoginEnabled: Bool {
-        if #available(macOS 13.0, *) {
-            return SMAppService.mainApp.status == .enabled
-        }
-        return false
-    }
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        guard #available(macOS 13.0, *) else { return }
-        do {
-            if enabled { try SMAppService.mainApp.register() }
-            else { try SMAppService.mainApp.unregister() }
-        } catch {
-            NSLog("Ditto: launch-at-login toggle failed: \(error)")
-        }
-    }
+    private var launchAtLoginEnabled: Bool { LoginItem.enabled }
 
     @objc private func about() {
         NSApp.activate(ignoringOtherApps: true)

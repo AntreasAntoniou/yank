@@ -26,10 +26,16 @@ A floating clipboard manager for macOS — a native, open-source take on [Paste]
 | `⌃⌥⌘V` | Show / hide the Ditto bar |
 | `← →` | Move selection |
 | `↩` | Paste selected clip |
+| `⌘C` / `⌃C` | Copy selected clip to the clipboard (no paste) |
+| `⌥↩` | Paste selected clip as plain text |
 | `⌘1`–`⌘9` | Quick-paste by position |
 | `⌘P` | Pin / unpin selection |
 | `⌘⌫` | Delete selection |
-| `esc` | Dismiss |
+| `esc` | Dismiss (or close settings) |
+
+Click a card to select it instantly; click it again to paste. The toolbar **gear**
+opens settings right inside the bar (launch-at-login, sound, history limit,
+permissions, debug logging).
 
 ## Build & run
 
