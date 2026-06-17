@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var previousApp: NSRunningApplication?
     private var isVisible = false
     private var isClosing = false
+    private var didPromptAX = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -24,7 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotKey()
         setupRemoteToggle()
         monitor.start()
-        checkAccessibility()
+        // Note: we deliberately do NOT prompt for Accessibility on launch — that
+        // nags on every start (and after every reinstall, since the code identity
+        // changes). We prompt lazily the first time an auto-paste actually needs it.
     }
 
     /// A Darwin notification that toggles the bar — lets scripts/tests drive it
@@ -58,8 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let limitItem = NSMenuItem(title: "History Limit", action: nil, keyEquivalent: "")
         let limitMenu = NSMenu()
-        for n in [50, 100, 200, 500, 1000] {
-            let it = NSMenuItem(title: "\(n) items", action: #selector(setLimit(_:)), keyEquivalent: "")
+        for n in [0, 100, 200, 500, 1000, 5000] {
+            let title = n == 0 ? "Unlimited" : "\(n) items"
+            let it = NSMenuItem(title: title, action: #selector(setLimit(_:)), keyEquivalent: "")
             it.tag = n
             it.state = (store.historyLimit == n) ? .on : .off
             limitMenu.addItem(it)
@@ -91,6 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(debugItem)
 
         menu.addItem(.separator())
+        if !AXIsProcessTrusted() {
+            menu.addItem(withTitle: "Grant Accessibility (for auto-paste)…",
+                         action: #selector(promptAccessibility), keyEquivalent: "")
+        }
         menu.addItem(withTitle: "Clear Unpinned History", action: #selector(clearHistory), keyEquivalent: "")
         menu.addItem(withTitle: "About Ditto", action: #selector(about), keyEquivalent: "")
         menu.addItem(.separator())
@@ -152,7 +160,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.markUsed(item)
         monitor.suppressNextChange()
         Paster.writeToPasteboard(item, store: store)
-        hide(paste: true)
+        // The clip is now on the system pasteboard regardless. Only the ⌘V
+        // keystroke needs Accessibility — prompt once if it's missing.
+        let canPaste = AXIsProcessTrusted()
+        if !canPaste && !didPromptAX {
+            didPromptAX = true
+            promptAccessibility()
+        }
+        hide(paste: canPaste)
     }
 
     // MARK: Keyboard
@@ -264,11 +279,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: Accessibility
 
-    private func checkAccessibility() {
-        let trusted = AXIsProcessTrustedWithOptions(
+    @objc private func promptAccessibility() {
+        _ = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
-        if !trusted {
-            NSLog("Ditto: needs Accessibility permission to auto-paste.")
-        }
     }
 }

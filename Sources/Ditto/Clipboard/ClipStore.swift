@@ -6,7 +6,8 @@ import Combine
 final class ClipStore: ObservableObject {
     @Published private(set) var items: [ClipItem] = []
 
-    /// Maximum number of unpinned items kept. Pinned items are always kept.
+    /// Maximum number of unpinned items kept (0 = unlimited). Pinned items are
+    /// always kept regardless.
     var historyLimit: Int {
         get { UserDefaults.standard.object(forKey: "historyLimit") as? Int ?? 200 }
         set { UserDefaults.standard.set(newValue, forKey: "historyLimit"); trim() }
@@ -116,6 +117,7 @@ final class ClipStore: ObservableObject {
     }
 
     private func trim() {
+        guard historyLimit > 0 else { return } // 0 = unlimited
         let unpinned = items.filter { !$0.pinned }
         guard unpinned.count > historyLimit else { return }
         let toRemove = unpinned.suffix(unpinned.count - historyLimit)
