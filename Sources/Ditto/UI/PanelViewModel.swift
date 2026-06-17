@@ -9,6 +9,8 @@ final class PanelViewModel: ObservableObject {
     @Published var activeKind: ClipKind? = nil
     @Published var pinnedOnly: Bool = false
     @Published var selection: Int = 0
+    /// Bumped each time the bar is presented so the UI can reset scroll/state.
+    @Published var presentToken: Int = 0
 
     let store: ClipStore
 

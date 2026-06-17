@@ -22,8 +22,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         setupPanel()
         setupHotKey()
+        setupRemoteToggle()
         monitor.start()
         checkAccessibility()
+    }
+
+    /// A Darwin notification that toggles the bar — lets scripts/tests drive it
+    /// without needing the global hotkey (which requires Accessibility).
+    private func setupRemoteToggle() {
+        let name = "ai.axiotic.ditto.toggle" as CFString
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let ctx = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterAddObserver(center, ctx, { _, observer, _, _, _ in
+            guard let observer else { return }
+            let me = Unmanaged<AppDelegate>.fromOpaque(observer).takeUnretainedValue()
+            DispatchQueue.main.async { me.toggle() }
+        }, name, nil, .deliverImmediately)
     }
 
     // MARK: Status bar
@@ -90,7 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !isVisible else { return }
         previousApp = NSWorkspace.shared.frontmostApplication
         model.query = ""
+        model.activeKind = nil
+        model.pinnedOnly = false
         model.resetSelection()
+        model.presentToken &+= 1
         isVisible = true
         isClosing = false
         NSApp.activate(ignoringOtherApps: true)

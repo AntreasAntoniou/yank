@@ -17,10 +17,15 @@ final class ClipboardMonitor {
     }
 
     func start() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.poll() }
         }
-        timer?.tolerance = 0.1
+        t.tolerance = 0.1
+        // `.common` modes keep polling alive during menu tracking, live
+        // scrolling, and window resize — otherwise a `.default`-mode timer
+        // silently pauses and clips copied in those moments are missed.
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     func stop() { timer?.invalidate(); timer = nil }

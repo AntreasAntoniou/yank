@@ -122,6 +122,16 @@ struct ContentView: View {
                     proxy.scrollTo(sel, anchor: .center)
                 }
             }
+            // When a brand-new clip arrives (it lands at index 0) snap the strip
+            // back to the front so the latest copy is always in view.
+            .onChange(of: model.results.first?.id) { _ in
+                model.selection = 0
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(0, anchor: .leading) }
+            }
+            // Every time the bar is summoned, snap back to the newest clip.
+            .onChange(of: model.presentToken) { _ in
+                proxy.scrollTo(0, anchor: .leading)
+            }
         }
         .frame(maxHeight: .infinity)
     }
