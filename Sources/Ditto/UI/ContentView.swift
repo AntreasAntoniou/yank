@@ -159,6 +159,12 @@ struct ContentView: View {
             .onChange(of: model.presentToken) { _ in
                 proxy.scrollTo(0, anchor: .leading)
             }
+            // Changing the filter (category / pinned / search) produces a shorter
+            // list; snap to the start so it isn't hidden past a stale scroll
+            // offset — which made categories look empty/wrong.
+            .onChange(of: model.activeKind) { _ in proxy.scrollTo(0, anchor: .leading) }
+            .onChange(of: model.pinnedOnly) { _ in proxy.scrollTo(0, anchor: .leading) }
+            .onChange(of: model.query) { _ in proxy.scrollTo(0, anchor: .leading) }
         }
         .frame(maxHeight: .infinity)
     }
