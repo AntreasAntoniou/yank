@@ -5,3 +5,8 @@ build/
 DerivedData/
 .DS_Store
 *.icns
+
+# Model artifacts (produced by tools/, bundled at build time)
+tools/models/
+*.mlpackage
+*.mlmodelc

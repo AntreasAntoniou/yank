@@ -27,6 +27,21 @@ if command -v iconutil >/dev/null 2>&1; then
     fi
 fi
 
+# Deep-search models (best effort). Compile any converted CoreML packages in
+# tools/models to .mlmodelc and bundle them + their tokenizer so on-device
+# embedding works. Absent → the app falls back to the built-in HashingEmbedder.
+if ls "$ROOT"/tools/models/*.mlpackage >/dev/null 2>&1; then
+    echo "▸ Bundling embedding models…"
+    for pkg in "$ROOT"/tools/models/*.mlpackage; do
+        name="$(basename "$pkg" .mlpackage)"
+        xcrun coremlcompiler compile "$pkg" "$APP/Contents/Resources" 2>/dev/null \
+            && echo "  • $name.mlmodelc"
+        # bundle the matching tokenizer.json (named <model>-tokenizer.json)
+        tok="$ROOT/tools/models/$name/tokenizer.json"
+        [ -f "$tok" ] && cp "$tok" "$APP/Contents/Resources/$name-tokenizer.json"
+    done
+fi
+
 # Code-sign the bundle. Prefer the stable, self-signed "Ditto Local Signing"
 # identity (created by Scripts/setup-signing.sh) so the macOS Accessibility grant
 # survives rebuilds — macOS keys the AX grant to code identity, and a stable

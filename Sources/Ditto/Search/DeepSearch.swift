@@ -13,7 +13,7 @@ enum DeepSearchLevel: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .off:    return "Off"
-        case .low:    return "Low (ogma-tiny)"
+        case .low:    return "Low (ogma-micro)"
         case .normal: return "Normal (ogma-small)"
         case .high:   return "High (EmbeddingGemma)"
         }
@@ -21,12 +21,25 @@ enum DeepSearchLevel: String, CaseIterable, Identifiable {
 
     /// Bundled CoreML model name (`<name>.mlmodelc`) for this tier.
     /// high also drives image search (via OCR text).
+    /// - low → axiotic/ogma-micro (2.3M, 128-dim)
+    /// - normal → axiotic/ogma-small (8.6M, 256-dim)
+    /// - high → google/embeddinggemma-300m (768-dim)
     var modelName: String? {
         switch self {
         case .off:    return nil
-        case .low:    return "ogma-tiny"
+        case .low:    return "ogma-micro"
         case .normal: return "ogma-small"
         case .high:   return "embeddinggemma-300m"
+        }
+    }
+
+    /// Output embedding dimension for each tier's model.
+    var dimension: Int {
+        switch self {
+        case .off:    return 256
+        case .low:    return 128
+        case .normal: return 256
+        case .high:   return 768
         }
     }
 }
@@ -107,19 +120,17 @@ struct HashingEmbedder: TextEmbedder {
 /// plus a tokenizer + mean-pooling in `embed` (SPEC Tier 7, P-deep-search).
 struct CoreMLEmbedder: TextEmbedder {
     let dimension: Int
-    private let model: MLModel
 
     init?(modelName: String) {
-        guard let url = Bundle.main.url(forResource: modelName, withExtension: "mlmodelc"),
-              let m = try? MLModel(contentsOf: url) else { return nil }
-        self.model = m
-        self.dimension = 768
+        // The ogma/EmbeddingGemma CoreML models are converted & bundled (parity
+        // 1.0 vs PyTorch), and the model's forward already returns a pooled,
+        // L2-normalised vector. What's left is the Swift Unigram tokenizer +
+        // `MLModel.prediction`. Until that's wired, stay DISABLED so the engine
+        // uses the HashingEmbedder fallback instead of zero vectors.
+        return nil
     }
 
-    func embed(_ text: String) -> [Float] {
-        // TODO: tokenize → model.prediction → mean-pool → normalise.
-        [Float](repeating: 0, count: dimension)
-    }
+    func embed(_ text: String) -> [Float] { [Float](repeating: 0, count: dimension) }
 }
 
 enum EmbedderProvider {
