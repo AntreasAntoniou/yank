@@ -150,18 +150,19 @@ struct SettingsView: View {
                     // box (a lazy grid does NOT clip, so it must live in a ScrollView
                     // with a fixed height or it overflows onto other sections).
                     ScrollView(.vertical, showsIndicators: true) {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 5)], alignment: .leading, spacing: 5) {
+                        FlowLayout(spacing: 5) {
                             ForEach(TagBaskets.active.tags, id: \.self) { tag in
                                 Text(tag)
-                                    .font(.system(size: 10)).lineLimit(1)
-                                    .padding(.horizontal, 6).padding(.vertical, 3)
+                                    .font(.system(size: 11)).lineLimit(1).fixedSize()
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
                                     .background(Theme.accent.opacity(0.12), in: Capsule())
                                     .foregroundStyle(Theme.accent)
                             }
                         }
-                        .padding(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
                     }
-                    .frame(height: 100)
+                    .frame(height: 130)
                     .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -222,9 +223,9 @@ struct SettingsView: View {
                     Toggle("Debug logging", isOn: $settings.debugLogging)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 24)
             .padding(.vertical, 16)
-            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: 820, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
         .frame(maxHeight: .infinity)

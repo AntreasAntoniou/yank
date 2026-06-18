@@ -29,6 +29,41 @@ enum Theme {
     }
 }
 
+/// A wrapping flow layout — each subview takes its natural width and wraps to the
+/// next row when it runs out of horizontal space. Used so tag pills show their
+/// full text instead of being truncated by a fixed-width grid.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 5
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, widest: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                x = 0; y += rowHeight + spacing; rowHeight = 0
+            }
+            x += size.width + spacing
+            widest = max(widest, x - spacing)
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: maxWidth.isFinite ? maxWidth : widest, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX; y += rowHeight + spacing; rowHeight = 0
+            }
+            sub.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 /// A blurred material background matching the system vibrancy.
 struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow
