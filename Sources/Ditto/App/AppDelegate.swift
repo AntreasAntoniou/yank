@@ -51,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let me = Unmanaged<AppDelegate>.fromOpaque(observer).takeUnretainedValue()
             DispatchQueue.main.async { me.embedSelfTest() }
         }, "ai.axiotic.ditto.embedtest" as CFString, nil, .deliverImmediately)
+        // Open straight into Settings (for screenshot/testing).
+        CFNotificationCenterAddObserver(center, ctx, { _, observer, _, _, _ in
+            guard let observer else { return }
+            let me = Unmanaged<AppDelegate>.fromOpaque(observer).takeUnretainedValue()
+            DispatchQueue.main.async { if !me.isVisible { me.show() }; me.model.showSettings = true }
+        }, "ai.axiotic.ditto.opensettings" as CFString, nil, .deliverImmediately)
     }
 
     private func embedSelfTest() {

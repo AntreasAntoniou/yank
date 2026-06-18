@@ -137,17 +137,24 @@ struct SettingsView: View {
                     Text("\(TagBaskets.active.tags.count) tags — clips are classified into their nearest few.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
 
-                    // The active basket's tags, shown as pills.
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 5)], alignment: .leading, spacing: 5) {
-                        ForEach(TagBaskets.active.tags, id: \.self) { tag in
-                            Text(tag)
-                                .font(.system(size: 10)).lineLimit(1)
-                                .padding(.horizontal, 6).padding(.vertical, 3)
-                                .background(Theme.accent.opacity(0.12), in: Capsule())
-                                .foregroundStyle(Theme.accent)
+                    // The active basket's tags, in a bounded, clipped, scrollable
+                    // box (a lazy grid does NOT clip, so it must live in a ScrollView
+                    // with a fixed height or it overflows onto other sections).
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 5)], alignment: .leading, spacing: 5) {
+                            ForEach(TagBaskets.active.tags, id: \.self) { tag in
+                                Text(tag)
+                                    .font(.system(size: 10)).lineLimit(1)
+                                    .padding(.horizontal, 6).padding(.vertical, 3)
+                                    .background(Theme.accent.opacity(0.12), in: Capsule())
+                                    .foregroundStyle(Theme.accent)
+                            }
                         }
+                        .padding(6)
                     }
-                    .frame(maxHeight: 110)
+                    .frame(height: 100)
+                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
                     if settings.activeBasket == "custom" {
                         Text("Custom tags (one per line)").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
