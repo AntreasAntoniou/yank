@@ -27,6 +27,23 @@ final class AppSettings: ObservableObject {
             EmbedderProvider.configureAndReindex(level: deepSearchLevel, store: store)
         }
     }
+    @Published var activeBasket: String {
+        didSet {
+            TagBaskets.activeID = activeBasket
+            store.reclassifyAllTags()   // cheap: re-tags from cached vectors
+        }
+    }
+    /// Custom-basket tags, one per line, for editing.
+    @Published var customTagsText: String
+
+    func applyCustomTags() {
+        let tags = customTagsText
+            .split(whereSeparator: { $0 == "\n" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        TagBaskets.custom = TagBasket(id: "custom", name: "Custom", tags: tags)
+        if activeBasket == "custom" { store.reclassifyAllTags() }
+    }
 
     init(store: ClipStore) {
         self.store = store
@@ -37,6 +54,8 @@ final class AppSettings: ObservableObject {
         launchAtLogin = LoginItem.enabled
         searchMode = DeepSearch.mode
         deepSearchLevel = DeepSearch.level
+        activeBasket = TagBaskets.activeID
+        customTagsText = TagBaskets.custom.tags.joined(separator: "\n")
     }
 
     func previewSound() { Feedback.play(named: soundName) }
@@ -104,6 +123,44 @@ struct SettingsView: View {
                     }
                     Text("Exact = substring · Tag = fast preset-tag lookup · Essence = full vector similarity. Models run on-device (CoreML); falls back to a built-in embedder until bundled.")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+
+                section("Tags") {
+                    HStack {
+                        Text("Basket")
+                        Spacer()
+                        Picker("", selection: $settings.activeBasket) {
+                            ForEach(TagBaskets.all) { Text($0.name).tag($0.id) }
+                        }
+                        .labelsHidden().frame(width: 170)
+                    }
+                    Text("\(TagBaskets.active.tags.count) tags — clips are classified into their nearest few.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+
+                    // The active basket's tags, shown as pills.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), spacing: 5)], alignment: .leading, spacing: 5) {
+                        ForEach(TagBaskets.active.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.system(size: 10)).lineLimit(1)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(Theme.accent.opacity(0.12), in: Capsule())
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                    .frame(maxHeight: 110)
+
+                    if settings.activeBasket == "custom" {
+                        Text("Custom tags (one per line)").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                        TextEditor(text: $settings.customTagsText)
+                            .font(.system(size: 11, design: .monospaced))
+                            .frame(height: 90)
+                            .padding(4)
+                            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                        HStack {
+                            Spacer()
+                            Button("Apply tags") { settings.applyCustomTags() }.controlSize(.small)
+                        }
+                    }
                 }
 
                 section("History") {

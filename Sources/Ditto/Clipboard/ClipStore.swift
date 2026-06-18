@@ -133,6 +133,39 @@ final class ClipStore: ObservableObject {
         }
     }
 
+    /// Recompute tags for every clip from its already-cached vector — used when
+    /// the tag basket changes. No re-embedding of clips (only the basket's tag
+    /// names are embedded, once); just re-runs the cheap nearest-tag step.
+    func reclassifyAllTags() {
+        let sig = EmbedderProvider.active.signature
+        let targets = items.filter { $0.embeddings[sig] != nil }
+        rebuildTagIndex()                       // drop stale mappings immediately
+        guard !targets.isEmpty else { return }
+        let total = targets.count
+        let started = Date()
+        indexing = IndexingProgress(done: 0, total: total, etaSeconds: nil)
+        Task { @MainActor in
+            var done = 0
+            for item in targets {
+                if var emb = item.embeddings[sig] {
+                    emb.tags = TagSpace.classify(emb.vector, embedder: EmbedderProvider.active, topK: 5)
+                    item.embeddings[sig] = emb
+                    db?.upsertEmbedding(clipID: item.id, model: sig, embedding: emb)
+                }
+                done += 1
+                if done % 16 == 0 || done == total {
+                    let elapsed = Date().timeIntervalSince(started)
+                    indexing = IndexingProgress(done: done, total: total,
+                        etaSeconds: done > 0 ? elapsed / Double(done) * Double(total - done) : nil)
+                    rebuildTagIndex()
+                    await Task.yield()
+                }
+            }
+            rebuildTagIndex()
+            indexing = nil
+        }
+    }
+
     func togglePin(_ item: ClipItem) {
         item.pinned.toggle()
         sortStable()

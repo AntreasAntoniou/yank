@@ -90,6 +90,11 @@ Models run locally via **CoreML** (no network, no account):
 | Low | [`axiotic/ogma-micro`](https://huggingface.co/axiotic/ogma-micro) | 128 |
 | Normal (default) | [`axiotic/ogma-small`](https://huggingface.co/axiotic/ogma-small) | 256 |
 
+**Tag baskets.** The tag taxonomy is configurable in **Settings → Tags**: pick a
+curated basket (General, Developer, Writing & Research, Business & Finance,
+Everyday) or edit your own **Custom** basket. Switching baskets re-tags your
+history from the *cached* vectors — no re-embedding — so it's fast.
+
 Enable it in the in-bar **Settings → Search**. Until the CoreML models are
 bundled, a built-in deterministic embedder is used as a fallback so search always
 works. Token ids and embeddings match the PyTorch reference exactly (the tokenizer

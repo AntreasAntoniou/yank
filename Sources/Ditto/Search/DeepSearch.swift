@@ -225,40 +225,21 @@ enum EmbedderProvider {
 
 @MainActor
 enum TagSpace {
-    /// 100 fixed content tags. Index in this array is the stable tag id.
-    static let names: [String] = [
-        "source code", "error message", "stack trace", "log line", "shell command",
-        "terminal output", "git commit", "git diff", "python code", "javascript code",
-        "swift code", "html markup", "css style", "sql query", "json data",
-        "yaml config", "xml document", "markdown text", "regular expression", "api endpoint",
-        "url link", "email address", "phone number", "postal address", "person name",
-        "company name", "product name", "date", "time", "number",
-        "currency amount", "percentage", "math equation", "uuid", "hash digest",
-        "base64 blob", "ip address", "domain name", "file path", "directory path",
-        "environment variable", "api key", "access token", "password", "username",
-        "configuration", "dependency", "package version", "changelog", "license text",
-        "legal clause", "contract term", "invoice", "receipt", "order number",
-        "tracking number", "flight booking", "hotel booking", "meeting invite", "calendar event",
-        "deadline", "reminder", "task item", "todo note", "project name",
-        "ticket id", "issue report", "bug report", "feature request", "design note",
-        "color value", "hex color", "font name", "image caption", "alt text",
-        "translation", "quotation", "citation", "bibliography reference", "question",
-        "answer", "definition", "instruction", "recipe", "ingredient list",
-        "measurement", "coordinate", "country", "city", "language",
-        "greeting", "signature", "title heading", "bullet list", "table data",
-        "csv row", "spreadsheet cell", "math formula", "chemical formula", "miscellaneous text"
-    ]
+    /// Tag names of the currently-selected basket. Index = stable tag id (within
+    /// the active basket). See `TagBaskets`.
+    static var names: [String] { TagBaskets.active.tags }
 
     static var count: Int { names.count }
 
-    /// Tag vectors in the active embedder's space, cached per embedder signature
-    /// (two models can share a dimension but live in different spaces).
+    /// Tag vectors in the active embedder's space, cached per (embedder, basket)
+    /// — two models can share a dimension, and the basket can change the tags.
     private static var cache: (String, [[Float]])?
 
     static func vectors(using embedder: TextEmbedder) -> [[Float]] {
-        if let (sig, v) = cache, sig == embedder.signature { return v }
+        let key = embedder.signature + "#" + TagBaskets.active.fingerprint
+        if let (k, v) = cache, k == key { return v }
         let v = names.map { embedder.embed($0) }
-        cache = (embedder.signature, v)
+        cache = (key, v)
         return v
     }
 
