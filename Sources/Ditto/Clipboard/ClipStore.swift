@@ -231,20 +231,28 @@ final class ClipStore: ObservableObject {
 
     private func load() {
         guard let data = try? Data(contentsOf: indexURL) else { return }
-        if let decoded = try? JSONDecoder().decode([ClipItem].self, from: data) {
-            items = decoded
-            // Migrate legacy single-vector fields into the per-model cache.
-            for item in items {
-                if item.embeddings.isEmpty, let v = item.vector {
-                    item.embeddings[item.vectorModel ?? "hashing-256"] =
-                        ModelEmbedding(vector: v, tags: item.tagIDs ?? [])
-                }
-                item.vector = nil; item.tagIDs = nil; item.vectorModel = nil
-            }
-            // Don't embed here — the embedder isn't configured yet at store init.
-            // `refreshForActiveModel()` (after the model loads) fills any gaps.
-            sortStable()
-            rebuildTagIndex()
+        let decoded: [ClipItem]
+        do {
+            decoded = try JSONDecoder().decode([ClipItem].self, from: data)
+        } catch {
+            // Never silently discard the user's history: keep a copy so the next
+            // save() can't overwrite unrecovered data, and surface the error.
+            NSLog("Ditto: history decode failed: \(error) — backing up to history.corrupt.json")
+            try? data.write(to: dir.appendingPathComponent("history.corrupt.json"))
+            return
         }
+        items = decoded
+        // Migrate legacy single-vector fields into the per-model cache.
+        for item in items {
+            if item.embeddings.isEmpty, let v = item.vector {
+                item.embeddings[item.vectorModel ?? "hashing-256"] =
+                    ModelEmbedding(vector: v, tags: item.tagIDs ?? [])
+            }
+            item.vector = nil; item.tagIDs = nil; item.vectorModel = nil
+        }
+        // Don't embed here — the embedder isn't configured yet at store init.
+        // `refreshForActiveModel()` (after the model loads) fills any gaps.
+        sortStable()
+        rebuildTagIndex()
     }
 }

@@ -55,6 +55,40 @@ final class ClassificationTests: XCTestCase {
     }
 }
 
+// MARK: - History decode resilience (don't lose history on schema changes)
+
+final class CodableResilienceTests: XCTestCase {
+    func testDecodesOldHistoryMissingEmbeddings() throws {
+        // Pre-`embeddings` format with the legacy single-vector fields.
+        let json = """
+        [{"id":"\(UUID().uuidString)","kind":"link","text":"https://x.com",
+          "createdAt":1,"lastUsedAt":1,"pinned":false,"useCount":0,
+          "vector":[0.1,0.2],"tagIDs":[1,2],"vectorModel":"hashing-256"}]
+        """.data(using: .utf8)!
+        let items = try JSONDecoder().decode([ClipItem].self, from: json)
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items.first?.text, "https://x.com")
+        XCTAssertEqual(items.first?.kind, .link)
+        XCTAssertTrue(items.first?.embeddings.isEmpty ?? false, "missing key → empty, not a decode failure")
+        XCTAssertEqual(items.first?.vector?.count, 2, "legacy fields preserved for migration")
+    }
+
+    func testDecodesMinimalItem() throws {
+        let json = "[{\"id\":\"\(UUID().uuidString)\",\"text\":\"x\"}]".data(using: .utf8)!
+        let items = try JSONDecoder().decode([ClipItem].self, from: json)
+        XCTAssertEqual(items.first?.text, "x")
+        XCTAssertEqual(items.first?.kind, .text, "missing kind defaults to text")
+    }
+
+    func testRoundTripPreservesEmbeddings() throws {
+        let item = ClipItem(kind: .text, text: "round trip")
+        item.embeddings["ogma-small-256"] = ModelEmbedding(vector: [0.5, 0.5], tags: [3, 7])
+        let data = try JSONEncoder().encode([item])
+        let back = try JSONDecoder().decode([ClipItem].self, from: data)
+        XCTAssertEqual(back.first?.embeddings["ogma-small-256"]?.tags, [3, 7])
+    }
+}
+
 // MARK: - Hex colour parsing
 
 final class ColorParsingTests: XCTestCase {

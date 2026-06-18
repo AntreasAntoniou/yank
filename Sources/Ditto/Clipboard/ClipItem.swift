@@ -85,6 +85,38 @@ final class ClipItem: Codable, Identifiable {
         self.useCount = 0
     }
 
+    // MARK: Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, text, rtf, payloadFile, filePath, colorHex
+        case createdAt, lastUsedAt, pinned, sourceApp, useCount
+        case embeddings, vector, tagIDs, vectorModel
+    }
+
+    /// Resilient decoding: every field is optional-with-default, so adding or
+    /// removing fields never makes an existing `history.json` fail to load (which
+    /// previously wiped history when a new non-optional field like `embeddings`
+    /// was introduced). Forward- and backward-compatible.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .text
+        text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
+        rtf = try c.decodeIfPresent(Data.self, forKey: .rtf)
+        payloadFile = try c.decodeIfPresent(String.self, forKey: .payloadFile)
+        filePath = try c.decodeIfPresent(String.self, forKey: .filePath)
+        colorHex = try c.decodeIfPresent(String.self, forKey: .colorHex)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        lastUsedAt = try c.decodeIfPresent(Date.self, forKey: .lastUsedAt) ?? createdAt
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        sourceApp = try c.decodeIfPresent(String.self, forKey: .sourceApp)
+        useCount = try c.decodeIfPresent(Int.self, forKey: .useCount) ?? 0
+        embeddings = try c.decodeIfPresent([String: ModelEmbedding].self, forKey: .embeddings) ?? [:]
+        vector = try c.decodeIfPresent([Float].self, forKey: .vector)
+        tagIDs = try c.decodeIfPresent([Int].self, forKey: .tagIDs)
+        vectorModel = try c.decodeIfPresent(String.self, forKey: .vectorModel)
+    }
+
     // MARK: Derived
 
     /// A short preview string used in the card header / accessibility.
