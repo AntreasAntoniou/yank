@@ -62,7 +62,10 @@ final class ClipStore: ObservableObject {
         }
         // Embed + tag at ingest (for the active model) so semantic search is
         // ready immediately. Skipped in the `off` tier, which uses no vectors.
-        if DeepSearch.level != .off && ClipIndexer.isStale(item) { ClipIndexer.index(item) }
+        if DeepSearch.level != .off && ClipIndexer.isStale(item) {
+            ClipIndexer.index(item)
+            ClipIndexer.refineKind(item)   // let the embedding correct the bucket
+        }
         items.insert(item, at: 0)
         trim()
         // Keep the pinned-first / recency order consistent with every other path

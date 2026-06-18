@@ -18,26 +18,40 @@ final class ClassificationTests: XCTestCase {
         XCTAssertEqual(ClipboardMonitor.detectKind(for: "mailto:a@b.com"), .link)
     }
 
-    /// Regression for the operator-precedence fix: a host-less URL must NOT be a link.
-    func testHostlessUrlIsNotLink() {
-        XCTAssertEqual(ClipboardMonitor.detectKind(for: "http:"), .text)
-        XCTAssertEqual(ClipboardMonitor.detectKind(for: "https://"), .text)
+    /// Bare domains and emails (no scheme) must classify as links now.
+    func testBareDomainsAndEmailsAreLinks() {
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "github.com"), .link)
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "www.apple.com/mac"), .link)
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "antreas@axiotic.ai"), .link)
     }
 
-    func testUrlsWithSpacesAreText() {
+    func testHostlessUrlIsNotLink() {
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "http:"), .text)
+    }
+
+    /// A note that merely contains a link stays text.
+    func testTextContainingLinkIsText() {
         XCTAssertEqual(ClipboardMonitor.detectKind(for: "see https://x.com now"), .text)
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "example.com is a great domain"), .text)
     }
 
     func testColors() {
         XCTAssertEqual(ClipboardMonitor.detectKind(for: "#FF8800"), .color)
-        XCTAssertEqual(ClipboardMonitor.detectKind(for: "FF8800"), .color)
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "FF8800"), .color)   // bare hex with a digit
         XCTAssertEqual(ClipboardMonitor.detectKind(for: "#fff"), .color)
-        XCTAssertEqual(ClipboardMonitor.detectKind(for: "#11223344"), .color) // 8-digit (alpha)
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "#11223344"), .color)
+    }
+
+    /// Letter-only words that happen to be valid hex must NOT be colours.
+    func testHexLikeWordsAreText() {
+        for word in ["decade", "facade", "deadbeef", "decaff", "cabbed"] {
+            XCTAssertEqual(ClipboardMonitor.detectKind(for: word), .text, "\(word) should be text")
+        }
     }
 
     func testNonColors() {
         XCTAssertEqual(ClipboardMonitor.detectKind(for: "#GGGGGG"), .text)
-        XCTAssertEqual(ClipboardMonitor.detectKind(for: "12345"), .text) // wrong length
+        XCTAssertEqual(ClipboardMonitor.detectKind(for: "12345"), .text)
     }
 }
 

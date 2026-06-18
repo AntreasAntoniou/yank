@@ -293,6 +293,18 @@ enum ClipIndexer {
     static func isStale(_ item: ClipItem) -> Bool {
         !item.isEmbedded(by: EmbedderProvider.active.signature)
     }
+
+    /// Use the embedding's top tags to correct a single-token `text` clip the
+    /// regex/detector missed — e.g. an obfuscated URL the model recognises as a
+    /// link. Conservative: only promotes whitespace-free text → link.
+    static func refineKind(_ item: ClipItem) {
+        guard item.kind == .text,
+              !item.text.contains(where: { $0.isWhitespace }),
+              let tags = item.embeddings[EmbedderProvider.active.signature]?.tags else { return }
+        let linkTags = Set(["url link", "email address", "domain name"])
+        let topNames = tags.prefix(2).compactMap { TagSpace.names.indices.contains($0) ? TagSpace.names[$0] : nil }
+        if topNames.contains(where: { linkTags.contains($0) }) { item.kind = .link }
+    }
 }
 
 // MARK: - Ranking

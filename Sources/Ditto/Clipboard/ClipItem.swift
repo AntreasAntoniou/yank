@@ -42,7 +42,9 @@ struct ModelEmbedding: Codable {
 /// referenced by `payloadFile` so the in-memory list stays light.
 final class ClipItem: Codable, Identifiable {
     let id: UUID
-    let kind: ClipKind
+    /// Mutable so the embedding tagger can refine it after ingest (e.g. promote a
+    /// model-recognised link out of the text bucket).
+    var kind: ClipKind
     /// Human readable text. For images this is a placeholder caption.
     var text: String
     /// Original RTF data when the source provided styled text.

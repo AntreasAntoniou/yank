@@ -127,13 +127,33 @@ final class ClipboardMonitor {
     }
 
     private static func isColor(_ s: String) -> Bool {
-        let hex = "^#?([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8}|[0-9A-Fa-f]{3})$"
-        return s.range(of: hex, options: .regularExpression) != nil
+        // With a `#` it's unambiguously a colour.
+        if s.range(of: "^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", options: .regularExpression) != nil {
+            return true
+        }
+        // Bare hex only if 6/8 chars AND it contains a digit — otherwise letter-only
+        // words that happen to be valid hex ("decade", "facade", "deadbeef") would
+        // wrongly classify as colours.
+        if s.range(of: "^([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$", options: .regularExpression) != nil {
+            return s.rangeOfCharacter(from: .decimalDigits) != nil
+        }
+        return false
     }
 
+    /// True when the whole string is a single link/email. Uses `NSDataDetector`
+    /// so bare domains (`github.com`, `www.apple.com`) and emails count, while a
+    /// note that merely *contains* a link stays text.
     private static func isLink(_ s: String) -> Bool {
-        guard !s.contains(" "), s.count < 2048 else { return false }
-        guard let url = URL(string: s), let scheme = url.scheme?.lowercased() else { return false }
-        return (["http", "https", "ftp"].contains(scheme) && url.host != nil) || scheme == "mailto"
+        guard !s.isEmpty, s.count < 2048 else { return false }
+        if s.lowercased().hasPrefix("mailto:") { return true }
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return false
+        }
+        let range = NSRange(s.startIndex..<s.endIndex, in: s)
+        guard let match = detector.firstMatch(in: s, options: [], range: range), match.range.location == 0 else {
+            return false
+        }
+        // Must span essentially the entire string (tolerate one trailing char).
+        return match.range.length >= range.length - 1
     }
 }
