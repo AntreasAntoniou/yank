@@ -1,6 +1,6 @@
 <h1 align="center">Yank</h1>
 
-<p align="center"><b>Your clipboard, with a memory.</b><br>
+<p align="center"><b>Copy anything. Yank it back.</b><br>
 A fast, private, open-source clipboard manager for macOS — searchable by <i>meaning</i>, entirely on your Mac.</p>
 
 <p align="center">
