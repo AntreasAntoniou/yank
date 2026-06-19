@@ -10,13 +10,13 @@ app:
 
 # Build and launch the app.
 run: app
-	@open build/Ditto.app
+	@open build/Yank.app
 
 # Copy the app into /Applications.
 install: app
-	@rm -rf /Applications/Ditto.app
-	@cp -R build/Ditto.app /Applications/Ditto.app
-	@echo "✓ Installed to /Applications/Ditto.app"
+	@rm -rf /Applications/Yank.app
+	@cp -R build/Yank.app /Applications/Yank.app
+	@echo "✓ Installed to /Applications/Yank.app"
 
 clean:
 	swift package clean

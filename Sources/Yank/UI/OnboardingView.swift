@@ -46,7 +46,7 @@ struct OnboardingView: View {
             VStack(spacing: 10) {
                 Image(systemName: "doc.on.clipboard.fill")
                     .font(.system(size: 44)).foregroundStyle(Theme.accent)
-                Text("Welcome to Ditto").font(.system(size: 24, weight: .bold))
+                Text("Welcome to Yank").font(.system(size: 24, weight: .bold))
                 Text("Your clipboard history, one keystroke away.")
                     .font(.system(size: 13)).foregroundStyle(.secondary)
             }
@@ -68,7 +68,7 @@ struct OnboardingView: View {
             Spacer(minLength: 16)
 
             Button(action: onDone) {
-                Text("Start using Ditto")
+                Text("Start using Yank")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity).padding(.vertical, 9)
             }
@@ -118,8 +118,8 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(trusted ? "Accessibility granted" : "One quick permission")
                     .font(.system(size: 13, weight: .semibold))
-                Text(trusted ? "Ditto can paste the clip you pick back into your app."
-                             : "Ditto needs Accessibility to paste into the app you were using.")
+                Text(trusted ? "Yank can paste the clip you pick back into your app."
+                             : "Yank needs Accessibility to paste into the app you were using.")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

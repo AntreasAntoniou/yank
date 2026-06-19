@@ -64,7 +64,7 @@ struct ContentView: View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "doc.on.clipboard.fill").foregroundStyle(Theme.accent)
-                Text(model.showSettings ? "Settings" : "Ditto")
+                Text(model.showSettings ? "Settings" : "Yank")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
             }
 
@@ -430,7 +430,7 @@ struct ContentView: View {
             HStack(spacing: 16) {
                 hint("esc", "Back")
                 Spacer()
-                Text("Ditto · ⌃⌥⌘V").font(.system(size: 11)).foregroundStyle(.tertiary)
+                Text("Yank · ⌃⌥⌘V").font(.system(size: 11)).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

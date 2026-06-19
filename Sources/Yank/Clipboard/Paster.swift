@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 /// Writes a clip back to the system pasteboard and (optionally) issues a paste
-/// into whichever app was frontmost before Ditto opened.
+/// into whichever app was frontmost before Yank opened.
 @MainActor
 enum Paster {
     /// Place the clip on the general pasteboard.

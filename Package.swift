@@ -2,14 +2,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "Ditto",
+    name: "Yank",
     platforms: [
         .macOS(.v13)
     ],
     targets: [
         .executableTarget(
-            name: "Ditto",
-            path: "Sources/Ditto",
+            name: "Yank",
+            path: "Sources/Yank",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
@@ -19,9 +19,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "DittoTests",
-            dependencies: ["Ditto"],
-            path: "Tests/DittoTests",
+            name: "YankTests",
+            dependencies: ["Yank"],
+            path: "Tests/YankTests",
             resources: [.copy("Fixtures")]
         )
     ]

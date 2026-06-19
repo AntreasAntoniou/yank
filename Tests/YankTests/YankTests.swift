@@ -1,7 +1,7 @@
 import XCTest
 import AppKit
 import SwiftUI
-@testable import Ditto
+@testable import Yank
 
 // MARK: - Content classification
 

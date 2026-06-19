@@ -173,17 +173,17 @@ final class OgmaEmbedder: TextEmbedder {
             ])
             out = try model.prediction(from: input)
         } catch {
-            NSLog("Ditto OgmaEmbedder: prediction failed (ids=\(ids.prefix(8))): \(error)")
+            NSLog("Yank OgmaEmbedder: prediction failed (ids=\(ids.prefix(8))): \(error)")
             return []
         }
         guard let emb = out.featureValue(for: "embedding")?.multiArrayValue else {
-            NSLog("Ditto OgmaEmbedder: no 'embedding' output; features=\(out.featureNames)")
+            NSLog("Yank OgmaEmbedder: no 'embedding' output; features=\(out.featureNames)")
             return []
         }
         var v = [Float](repeating: 0, count: emb.count)
         for i in 0..<emb.count { v[i] = emb[i].floatValue }
         if DebugLog.enabled {
-            NSLog("Ditto OgmaEmbedder: ids=\(ids.prefix(8)) len=\(len) embCount=\(emb.count) dtype=\(emb.dataType.rawValue) v0..2=\(v.prefix(3))")
+            NSLog("Yank OgmaEmbedder: ids=\(ids.prefix(8)) len=\(len) embCount=\(emb.count) dtype=\(emb.dataType.rawValue) v0..2=\(v.prefix(3))")
         }
         return v
     }
@@ -212,7 +212,7 @@ enum EmbedderProvider {
             active = OgmaEmbedder(modelName: name, model: model, tokenizer: tokenizer,
                                   dimension: level.dimension)
         } else {
-            if level != .off { NSLog("Ditto: embedder unavailable for \(level.rawValue) — using fallback") }
+            if level != .off { NSLog("Yank: embedder unavailable for \(level.rawValue) — using fallback") }
             active = HashingEmbedder()
         }
         return active.signature != before

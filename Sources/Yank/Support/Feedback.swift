@@ -47,7 +47,7 @@ enum DebugLog {
 
     private static let url: URL = {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return support.appendingPathComponent("Ditto/debug.log")
+        return support.appendingPathComponent("Yank/debug.log")
     }()
 
     static func write(_ message: String) {

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// Audit BL-T2: legacy `history.json` → SQLite migration on `ClipStore` init.
 /// Verifies pins survive, the legacy single-vector fields fold into the per-model

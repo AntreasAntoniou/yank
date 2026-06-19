@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// Audit BL-T6: `SemanticRanker.essence` ranking, thresholding and fallback.
 /// All vectors come from the deterministic `HashingEmbedder`, so the cosine

@@ -15,7 +15,7 @@ enum LoginItem {
             if on { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
         } catch {
-            NSLog("Ditto: launch-at-login toggle failed: \(error)")
+            NSLog("Yank: launch-at-login toggle failed: \(error)")
         }
     }
 }

@@ -421,7 +421,7 @@ final class ClipStore: ObservableObject {
         let decoded: [ClipItem]
         do { decoded = try JSONDecoder().decode([ClipItem].self, from: data) }
         catch {
-            NSLog("Ditto: legacy history decode failed: \(error) — keeping history.corrupt.json")
+            NSLog("Yank: legacy history decode failed: \(error) — keeping history.corrupt.json")
             try? data.write(to: dir.appendingPathComponent("history.corrupt.json"))
             return
         }

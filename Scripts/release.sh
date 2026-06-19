@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# release.sh — build, Developer-ID sign, notarize, staple, and package Ditto as a
+# release.sh — build, Developer-ID sign, notarize, staple, and package Yank as a
 # distributable DMG. Designed to be runnable TODAY (it degrades gracefully to a
 # self-signed local DMG) and to "just work" once you have an Apple Developer ID.
 #
@@ -21,8 +21,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="build/Ditto.app"
-ENTITLEMENTS="Scripts/Ditto.entitlements"
+APP="build/Yank.app"
+ENTITLEMENTS="Scripts/Yank.entitlements"
 DEVID="${DEVID:-}"                 # Developer ID Application identity (empty = local/self-signed)
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"   # notarytool keychain profile (empty = skip notarization)
 
@@ -30,7 +30,7 @@ say() { printf '\n\033[1;36m▸ %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
 
 # 1. Build the .app (build-app.sh bundles models + tokenizers and does a base sign).
-say "Building Ditto.app…"
+say "Building Yank.app…"
 bash Scripts/build-app.sh release
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 say "Version $VERSION"
@@ -38,7 +38,7 @@ say "Version $VERSION"
 # 2. Developer ID signing with the Hardened Runtime (required for notarization).
 if [[ -n "$DEVID" ]]; then
     say "Signing with Developer ID + Hardened Runtime…"
-    # Ditto is a single Mach-O (static SwiftPM binary); .mlmodelc are data, not code.
+    # Yank is a single Mach-O (static SwiftPM binary); .mlmodelc are data, not code.
     codesign --force --options runtime --timestamp \
              --entitlements "$ENTITLEMENTS" \
              --sign "$DEVID" "$APP"
@@ -54,24 +54,24 @@ fi
 # 3. Notarize + staple (only meaningful with a Developer ID signature).
 if [[ -n "$NOTARY_PROFILE" && -n "$DEVID" ]]; then
     say "Notarizing (this can take a few minutes)…"
-    /usr/bin/ditto -c -k --keepParent "$APP" "build/Ditto.zip"
-    xcrun notarytool submit "build/Ditto.zip" --keychain-profile "$NOTARY_PROFILE" --wait
+    /usr/bin/ditto -c -k --keepParent "$APP" "build/Yank.zip"
+    xcrun notarytool submit "build/Yank.zip" --keychain-profile "$NOTARY_PROFILE" --wait
     say "Stapling ticket…"
     xcrun stapler staple "$APP"
-    rm -f "build/Ditto.zip"
+    rm -f "build/Yank.zip"
 elif [[ -n "$DEVID" ]]; then
     warn "NOTARY_PROFILE not set — skipping notarization (DMG won't pass Gatekeeper)."
 fi
 
 # 4. Package a drag-to-Applications DMG.
 say "Building DMG…"
-DMG="build/Ditto-$VERSION.dmg"
+DMG="build/Yank-$VERSION.dmg"
 STAGE="build/dmg"
 rm -rf "$STAGE" "$DMG"
 mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/Ditto.app"
+cp -R "$APP" "$STAGE/Yank.app"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "Ditto $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Yank $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"
 
 # 5. Sign + notarize the DMG itself (recommended for direct distribution).

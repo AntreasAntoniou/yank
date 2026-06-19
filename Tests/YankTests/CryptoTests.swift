@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// At-rest encryption round-trips and is non-destructive (BL-02).
 final class CryptoTests: XCTestCase {

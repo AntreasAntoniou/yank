@@ -1,6 +1,6 @@
 import AppKit
 
-// Ditto runs as a menu-bar accessory app: no Dock icon, no main window.
+// Yank runs as a menu-bar accessory app: no Dock icon, no main window.
 @main
 struct Main {
     @MainActor static func main() {

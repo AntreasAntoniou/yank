@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// Regression tests for the hand-rolled ogma tokenizer (audit H3 / BL-T3).
 /// Uses a tiny checked-in tokenizer fixture (vocab: [CLS]=2, [SEP]=3, ▁foo/▁bar/

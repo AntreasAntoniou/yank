@@ -79,7 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Ditto")
+            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Yank")
             button.image?.isTemplate = true
         }
         statusMenu.delegate = self
@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func rebuildMenu() {
         let menu = statusMenu
         menu.removeAllItems()
-        menu.addItem(withTitle: "Open Ditto  (⌃⌥⌘V)", action: #selector(toggle), keyEquivalent: "")
+        menu.addItem(withTitle: "Open Yank  (⌃⌥⌘V)", action: #selector(toggle), keyEquivalent: "")
         menu.addItem(.separator())
 
         let limitItem = NSMenuItem(title: "History Limit", action: nil, keyEquivalent: "")
@@ -140,10 +140,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                          action: #selector(promptAccessibility), keyEquivalent: "")
         }
         menu.addItem(withTitle: "Clear Unpinned History", action: #selector(clearHistory), keyEquivalent: "")
-        menu.addItem(withTitle: "Welcome to Ditto…", action: #selector(showWelcome), keyEquivalent: "")
-        menu.addItem(withTitle: "About Ditto", action: #selector(about), keyEquivalent: "")
+        menu.addItem(withTitle: "Welcome to Yank…", action: #selector(showWelcome), keyEquivalent: "")
+        menu.addItem(withTitle: "About Yank", action: #selector(about), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Ditto", action: #selector(quit), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Yank", action: #selector(quit), keyEquivalent: "q")
     }
 
     // MARK: Panel
@@ -329,7 +329,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func about() {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Ditto"
+        alert.messageText = "Yank"
         alert.informativeText = "A floating clipboard manager for macOS.\n\nPress ⌃⌥⌘V anywhere to summon your clipboard history.\n\nOn-device models: ogma-micro and ogma-small (axiotic) are licensed CC-BY-NC-4.0, derived with attribution to Jina AI. EmbeddingGemma, if bundled, is subject to Google's Gemma terms."
         alert.alertStyle = .informational
         alert.runModal()

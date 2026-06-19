@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// BL-18: on launch the store removes stray "*.png" payloads on disk that no
 /// live item references, while leaving referenced payloads untouched.

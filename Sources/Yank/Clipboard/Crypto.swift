@@ -27,10 +27,10 @@ enum Crypto {
         guard let data = plain.data(using: .utf8) else { return plain }
         do {
             let box = try AES.GCM.seal(data, using: key)
-            guard let combined = box.combined else { NSLog("Ditto Crypto: nil combined"); return plain }
+            guard let combined = box.combined else { NSLog("Yank Crypto: nil combined"); return plain }
             return marker + combined.base64EncodedString()
         } catch {
-            NSLog("Ditto Crypto: seal failed: \(error)")
+            NSLog("Yank Crypto: seal failed: \(error)")
             return plain
         }
     }

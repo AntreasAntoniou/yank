@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// Direct tests for the SQLite store — previously untested (audit BL-T1).
 final class DatabaseTests: XCTestCase {

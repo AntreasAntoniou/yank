@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 import AppKit
 
-// Draws a simple, friendly Ditto app icon (rounded clipboard glyph on a
+// Draws a simple, friendly Yank app icon (rounded clipboard glyph on a
 // gradient) and writes PNGs at every size an .icns needs.
 func drawIcon(size: CGFloat) -> NSImage {
     let image = NSImage(size: NSSize(width: size, height: size))
@@ -53,7 +53,7 @@ func png(_ image: NSImage, _ pixels: Int) -> Data {
 }
 
 let outDir = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "."
-let iconset = "\(outDir)/Ditto.iconset"
+let iconset = "\(outDir)/Yank.iconset"
 try? FileManager.default.createDirectory(atPath: iconset, withIntermediateDirectories: true)
 
 let sizes: [(Int, String)] = [

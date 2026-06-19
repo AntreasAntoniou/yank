@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 final class CaptureSkipTests: XCTestCase {
     func testExcludedBundleIsSkipped() {

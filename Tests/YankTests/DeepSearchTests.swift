@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 final class EmbeddingTests: XCTestCase {
     private let e = HashingEmbedder()

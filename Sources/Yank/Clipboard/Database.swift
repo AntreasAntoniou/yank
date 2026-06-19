@@ -12,7 +12,7 @@ final class Database {
 
     init?(path: String) {
         guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil) == SQLITE_OK else {
-            NSLog("Ditto: failed to open db at \(path)")
+            NSLog("Yank: failed to open db at \(path)")
             return nil
         }
         exec("PRAGMA journal_mode = WAL;")
@@ -175,7 +175,7 @@ final class Database {
 
     private func exec(_ sql: String) {
         if sqlite3_exec(db, sql, nil, nil, nil) != SQLITE_OK {
-            NSLog("Ditto db exec error: \(String(cString: sqlite3_errmsg(db)))")
+            NSLog("Yank db exec error: \(String(cString: sqlite3_errmsg(db)))")
         }
     }
 
@@ -183,14 +183,14 @@ final class Database {
         var stmt: OpaquePointer?
         defer { sqlite3_finalize(stmt) }
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK { body(stmt) }
-        else { NSLog("Ditto db prepare error: \(String(cString: sqlite3_errmsg(db)))") }
+        else { NSLog("Yank db prepare error: \(String(cString: sqlite3_errmsg(db)))") }
     }
 
     /// Run a write statement to completion, logging the SQLite error on failure.
     /// Returns true only when the step reaches SQLITE_DONE.
     private func step(_ stmt: OpaquePointer?) -> Bool {
         if sqlite3_step(stmt) == SQLITE_DONE { return true }
-        NSLog("Ditto db step error: \(String(cString: sqlite3_errmsg(db)))")
+        NSLog("Yank db step error: \(String(cString: sqlite3_errmsg(db)))")
         return false
     }
 
@@ -234,7 +234,7 @@ extension Database {
         guard let data = blob(stmt, i) else { return [] }
         let stride = MemoryLayout<Float16>.stride
         guard data.count % stride == 0 else {   // malformed blob → treat as no vector
-            NSLog("Ditto db: embedding blob length \(data.count) not a multiple of \(stride)")
+            NSLog("Yank db: embedding blob length \(data.count) not a multiple of \(stride)")
             return []
         }
         let count = data.count / stride

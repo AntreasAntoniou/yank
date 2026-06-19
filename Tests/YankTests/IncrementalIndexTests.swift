@@ -1,5 +1,5 @@
 import XCTest
-@testable import Ditto
+@testable import Yank
 
 /// BL-08: the incrementally maintained `tagIndex` (updated on add/delete) must
 /// stay byte-for-byte identical to a full rebuild over `items`.
