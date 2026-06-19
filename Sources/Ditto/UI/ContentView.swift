@@ -171,7 +171,9 @@ struct ContentView: View {
                                 onPin: { store.togglePin(item) },
                                 onDelete: { store.delete(item) }
                             )
-                            .id(idx)
+                            // Identity is the clip's id (from ForEach) — NOT the index.
+                            // An index-based .id reused stale views across filters
+                            // (e.g. URLs showing under Images). Scroll by id below.
                             .onTapGesture { model.click(idx) }
                         }
                     }
@@ -182,8 +184,10 @@ struct ContentView: View {
             // Only keyboard navigation scrolls the strip; mouse clicks don't, so a
             // click registers and highlights instantly with no animated re-center.
             .onChange(of: model.scrollRequest) { target in
+                guard model.results.indices.contains(target) else { return }
+                let id = model.results[target].id
                 withAnimation(.easeOut(duration: 0.18)) {
-                    proxy.scrollTo(target, anchor: .center)
+                    proxy.scrollTo(id, anchor: .center)
                 }
             }
             // When a clip is added/bumped, reveal it wherever it lands in the
@@ -191,7 +195,7 @@ struct ContentView: View {
             .onChange(of: store.lastAddedID) { id in
                 guard let id, let idx = model.results.firstIndex(where: { $0.id == id }) else { return }
                 model.selection = idx
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(idx, anchor: .center) }
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
             }
             // Every time the bar is summoned, snap back to the newest clip.
             .onChange(of: model.presentToken) { _ in
@@ -219,7 +223,7 @@ struct ContentView: View {
                         emptyState.frame(maxWidth: .infinity)
                     } else {
                         ForEach(Array(results.enumerated()), id: \.element.id) { idx, item in
-                            clipRow(idx, item).id(idx)
+                            clipRow(idx, item).id(item.id)
                         }
                     }
                 }
@@ -242,7 +246,7 @@ struct ContentView: View {
                             emptyState.frame(maxWidth: .infinity)
                         } else {
                             ForEach(Array(results.enumerated()), id: \.element.id) { idx, item in
-                                clipRow(idx, item).id(idx)
+                                clipRow(idx, item).id(item.id)
                             }
                         }
                     }
@@ -466,18 +470,21 @@ struct ContentView: View {
 /// newly added clips, and snap to the top when the filter/query changes.
 private extension View {
     @MainActor func scrollTargets(_ proxy: ScrollViewProxy, model: PanelViewModel, store: ClipStore) -> some View {
-        self
+        // Rows are identified by the clip's id (not the index), so scroll by id.
+        func top() { if let f = model.results.first?.id { proxy.scrollTo(f, anchor: .top) } }
+        return self
             .onChange(of: model.scrollRequest) { t in
-                withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(t, anchor: .center) }
+                guard model.results.indices.contains(t) else { return }
+                withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(model.results[t].id, anchor: .center) }
             }
             .onChange(of: store.lastAddedID) { id in
                 guard let id, let idx = model.results.firstIndex(where: { $0.id == id }) else { return }
                 model.selection = idx
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(idx, anchor: .center) }
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) }
             }
-            .onChange(of: model.presentToken) { _ in proxy.scrollTo(0, anchor: .top) }
-            .onChange(of: model.activeKind) { _ in proxy.scrollTo(0, anchor: .top) }
-            .onChange(of: model.pinnedOnly) { _ in proxy.scrollTo(0, anchor: .top) }
-            .onChange(of: model.query) { _ in proxy.scrollTo(0, anchor: .top) }
+            .onChange(of: model.presentToken) { _ in top() }
+            .onChange(of: model.activeKind) { _ in top() }
+            .onChange(of: model.pinnedOnly) { _ in top() }
+            .onChange(of: model.query) { _ in top() }
     }
 }
