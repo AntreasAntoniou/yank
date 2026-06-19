@@ -53,9 +53,21 @@ final class ClipStore: ObservableObject {
         migrateLegacyJSONIfNeeded()
         items = db?.loadAll() ?? []
         repairKinds()
+        encryptExistingRowsIfNeeded()
         sortStable()
         rebuildTagIndex()
         sweepOrphanPayloads()
+    }
+
+    /// One-time migration: rewrite every row so its content is encrypted at rest
+    /// (inserts now encrypt). Rows loaded as legacy plaintext are unaffected in
+    /// memory; this just re-persists them sealed. Runs once, gated by a flag.
+    private func encryptExistingRowsIfNeeded() {
+        let key = "dbEncryptedV1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        for item in items { db?.insert(item) }
+        db?.vacuum()   // purge stale plaintext from free pages
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     /// Heal stored rows: (1) re-derive each text-bearing clip's kind from

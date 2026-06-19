@@ -1,0 +1,90 @@
+name: Release
+
+# Tag a version (e.g. `git tag v1.0.0 && git push --tags`) to build, sign,
+# notarize, package a DMG, and publish a GitHub Release automatically.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   MACOS_CERT_P12        base64 of your "Developer ID Application" .p12
+#   MACOS_CERT_PASSWORD   password for that .p12
+#   KEYCHAIN_PASSWORD     any throwaway password for the temp CI keychain
+#   MACOS_DEVID           e.g. "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID              your Apple ID email (for notarytool)
+#   APPLE_TEAM_ID         your 10-char Team ID
+#   APPLE_APP_PASSWORD    an app-specific password from appleid.apple.com
+#
+# NOTE: the bundled ogma CoreML models are gitignored. For CI to build a working
+# app, commit them via Git LFS (recommended) or have a prior step restore them.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true   # bundled models live in Git LFS (see NOTE above)
+
+      - name: Verify bundled models are present
+        run: |
+          if ! ls tools/models/*.mlpackage >/dev/null 2>&1; then
+            echo "::error::No models in tools/models/*.mlpackage. Commit them via Git LFS before tagging a release."
+            exit 1
+          fi
+
+      - name: Set up signing keychain
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm -f /tmp/cert.p12
+
+      - name: Store notarization credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials ditto-notary \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+
+      - name: Build, sign, notarize, package DMG
+        env:
+          DEVID: ${{ secrets.MACOS_DEVID }}
+          NOTARY_PROFILE: ditto-notary
+        run: bash Scripts/release.sh
+
+      - name: Compute DMG checksum
+        id: dmg
+        run: |
+          FILE=$(ls build/Ditto-*.dmg)
+          echo "path=$FILE" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(shasum -a 256 "$FILE" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.dmg.outputs.path }}
+          generate_release_notes: true
+          body: |
+            ### Ditto ${{ github.ref_name }}
+            A fast, private, open-source clipboard manager for macOS.
+
+            - macOS 13 Ventura or later · Universal (Apple Silicon & Intel) · notarized
+            - **SHA-256:** `${{ steps.dmg.outputs.sha256 }}`
+
+            Install: download the DMG, drag Ditto to Applications, and press ⌃⌥⌘V.
+            Or via Homebrew once the cask is published: `brew install --cask ditto`.

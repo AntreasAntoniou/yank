@@ -70,11 +70,12 @@ final class Database {
             let item = ClipItem(
                 id: id,
                 kind: ClipKind(rawValue: column(stmt, 1)) ?? .text,
-                text: column(stmt, 2),
-                rtf: Self.blob(stmt, 3),
+                // Decrypt content (legacy plaintext rows pass through unchanged).
+                text: Crypto.open(column(stmt, 2)),
+                rtf: Crypto.open(Self.blob(stmt, 3)),
                 payloadFile: columnOpt(stmt, 4),
-                filePath: columnOpt(stmt, 5),
-                colorHex: columnOpt(stmt, 6),
+                filePath: columnOpt(stmt, 5).map(Crypto.open),
+                colorHex: columnOpt(stmt, 6).map(Crypto.open),
                 createdAt: Date(timeIntervalSinceReferenceDate: sqlite3_column_double(stmt, 7)),
                 lastUsedAt: Date(timeIntervalSinceReferenceDate: sqlite3_column_double(stmt, 8)),
                 pinned: sqlite3_column_int(stmt, 9) != 0,
@@ -100,11 +101,13 @@ final class Database {
         prepare(sql) { stmt in
             bindText(stmt, 1, item.id.uuidString)
             bindText(stmt, 2, item.kind.rawValue)
-            bindText(stmt, 3, item.text)
-            bindBlob(stmt, 4, item.rtf)
+            // Encrypt the actual clipboard CONTENT at rest (text, rich text, file
+            // path, color). Metadata (id, kind, timestamps, source app) stays clear.
+            bindText(stmt, 3, Crypto.seal(item.text))
+            bindBlob(stmt, 4, Crypto.seal(item.rtf))
             bindText(stmt, 5, item.payloadFile)
-            bindText(stmt, 6, item.filePath)
-            bindText(stmt, 7, item.colorHex)
+            bindText(stmt, 6, item.filePath.map(Crypto.seal))
+            bindText(stmt, 7, item.colorHex.map(Crypto.seal))
             sqlite3_bind_double(stmt, 8, item.createdAt.timeIntervalSinceReferenceDate)
             sqlite3_bind_double(stmt, 9, item.lastUsedAt.timeIntervalSinceReferenceDate)
             sqlite3_bind_int(stmt, 10, item.pinned ? 1 : 0)
@@ -154,6 +157,10 @@ final class Database {
     }
 
     func deleteUnpinned() { exec("DELETE FROM clips WHERE pinned=0;") }
+
+    /// Rewrite the database file, purging free pages. Used after the encryption
+    /// migration so stale plaintext can't linger in the file at rest.
+    func vacuum() { exec("VACUUM;") }
 
     func delete(ids: [UUID]) {
         guard !ids.isEmpty else { return }
