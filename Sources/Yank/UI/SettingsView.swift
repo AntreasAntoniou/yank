@@ -158,7 +158,7 @@ struct SettingsView: View {
                         .disabled(settings.searchMode == .exact)
                     }
                     embedderStatus
-                    Text("Exact = substring · Tag = fast preset-tag lookup · Essence = full vector similarity. Models run on-device (CoreML); falls back to a built-in embedder until bundled.")
+                    Text("Smart = exact matches first, then by meaning · Exact = literal words · Tag = by auto category. You can also switch modes from the pill next to the search field. Models run on-device (CoreML).")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
 

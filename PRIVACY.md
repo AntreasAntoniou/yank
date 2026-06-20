@@ -18,6 +18,19 @@ Semantic-search embeddings are computed **on-device** (Apple CoreML) and stored 
 the same local database. No clipboard content, embedding, or usage data is ever
 transmitted anywhere.
 
+## Encryption
+
+Clip **content** (text, rich text, file paths, colors) is encrypted at rest with
+AES-GCM. The encryption key is bound to your Mac's **Secure Enclave** where one is
+present — the key is derived inside the Enclave and its material can never be
+extracted from the chip, so copying the database (or the keychain) to another
+machine is useless, and no Touch ID prompt is required. On Macs without a Secure
+Enclave the key lives in your login Keychain.
+
+Honest caveat: **image clips are currently stored as PNG files on disk and are not
+yet encrypted** (encrypting image payloads is on the roadmap). Treat the storage
+folder as sensitive, and use the exclusion list for apps where you copy secrets.
+
 ## What Yank does NOT do
 
 - ❌ No network requests. Yank makes no outbound connections for its core

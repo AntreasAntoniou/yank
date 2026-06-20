@@ -54,9 +54,23 @@ final class ClipStore: ObservableObject {
         items = db?.loadAll() ?? []
         repairKinds()
         encryptExistingRowsIfNeeded()
+        reKeyToSecureEnclaveIfNeeded()
         sortStable()
         rebuildTagIndex()
         sweepOrphanPayloads()
+    }
+
+    /// One-time re-key: when the encryption key gains Secure-Enclave backing, rows
+    /// sealed with the old random key (decrypted during loadAll via Crypto's legacy
+    /// fallback) are re-sealed under the Enclave-derived key. No data loss even if
+    /// interrupted — `Crypto.open` still falls back to the old key for any row not
+    /// yet re-sealed. Gated by a flag; only runs on Secure-Enclave Macs.
+    private func reKeyToSecureEnclaveIfNeeded() {
+        let flag = "reKeySEv2"
+        guard Crypto.usesSecureEnclave, !UserDefaults.standard.bool(forKey: flag) else { return }
+        for item in items { db?.insert(item) }
+        db?.vacuum()
+        UserDefaults.standard.set(true, forKey: flag)
     }
 
     /// One-time migration: rewrite every row so its content is encrypted at rest

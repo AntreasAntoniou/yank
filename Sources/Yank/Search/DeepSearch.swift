@@ -46,20 +46,30 @@ enum DeepSearchLevel: String, CaseIterable, Identifiable {
 }
 
 /// How the bar searches.
-/// - `exact`: case-insensitive substring (no vectors).
-/// - `tag`: classify the query to its nearest preset tag (100 comparisons),
-///   then O(1) lookup of entries pre-tagged at ingest — no per-item dot product.
-/// - `essence`: full query·item cosine over every entry's stored vector.
+/// - `exact`: case-insensitive substring (no vectors) — the literal words you type.
+/// - `smart` (default): exact substring matches first, then the semantically
+///   closest remaining clips (hybrid) — you always get the obvious hit, plus
+///   meaning-based suggestions below it.
+/// - `tag`: classify the query to its nearest preset tag, then O(1) lookup of
+///   entries pre-tagged at ingest.
 enum SearchMode: String, CaseIterable, Identifiable {
-    case exact, tag, essence
+    case exact, smart, tag
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .exact:   return "Exact"
-        case .tag:     return "Tag"
-        case .essence: return "Essence"
+        case .exact: return "Exact"
+        case .smart: return "Smart"
+        case .tag:   return "Tag"
         }
     }
+    var blurb: String {
+        switch self {
+        case .exact: return "The literal words you type"
+        case .smart: return "Exact matches first, then by meaning"
+        case .tag:   return "By auto category"
+        }
+    }
+    var symbol: String { self == .exact ? "magnifyingglass" : "sparkles" }
 }
 
 enum DeepSearch {
@@ -69,8 +79,9 @@ enum DeepSearch {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "deepSearchLevel") }
     }
     static var mode: SearchMode {
-        // Default to Essence (full vector similarity) — the headline experience.
-        get { SearchMode(rawValue: UserDefaults.standard.string(forKey: "searchMode") ?? "essence") ?? .essence }
+        // Default to Smart (exact hits first, then by meaning) — deterministic AND
+        // discoverable. Legacy "essence" values fall through to this.
+        get { SearchMode(rawValue: UserDefaults.standard.string(forKey: "searchMode") ?? "smart") ?? .smart }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "searchMode") }
     }
 }
@@ -326,5 +337,26 @@ enum SemanticRanker {
         let kept = scored.filter { $0.1 >= 0.12 }.sorted { $0.1 > $1.1 }
         return (kept.isEmpty ? scored.sorted { $0.1 > $1.1 }.prefix(min(items.count, 12)).map { ($0.0, $0.1) }
                              : kept).map { $0.0 }
+    }
+
+    /// Hybrid "Smart" search: exact substring hits FIRST (deterministic, in the
+    /// list's existing order), then the semantically-closest remaining clips above
+    /// threshold. No top-K fallback — when nothing is relevant we don't pad the
+    /// results with unrelated guesses (that was the old Essence-default complaint).
+    static func smart(query: String, items: [ClipItem], embedder: TextEmbedder) -> [ClipItem] {
+        let q = query.lowercased()
+        let exact = items.filter { searchText($0).lowercased().contains(q) }
+        let exactIDs = Set(exact.map { $0.id })
+        let qv = embedder.embed(query, query: true)
+        let semantic = items
+            .filter { !exactIDs.contains($0.id) }
+            .map { item -> (ClipItem, Float) in
+                let vec = item.embeddings[embedder.signature]?.vector ?? embedder.embed(searchText(item))
+                return (item, cosine(qv, vec))
+            }
+            .filter { $0.1 >= 0.12 }
+            .sorted { $0.1 > $1.1 }
+            .map { $0.0 }
+        return exact + semantic
     }
 }

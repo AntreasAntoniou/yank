@@ -56,6 +56,7 @@ struct ContentView: View {
             DispatchQueue.main.async { searchFocused = !showing }
         }
         .onAppear { DispatchQueue.main.async { searchFocused = !model.showSettings } }
+        .onChange(of: settings.searchMode) { _ in model.resetSelection() }
     }
 
     // MARK: Toolbar
@@ -73,26 +74,28 @@ struct ContentView: View {
             Spacer()
 
             if !model.showSettings {
-                HStack(spacing: 6) {
-                    let semantic = DeepSearch.mode != .exact
-                    Image(systemName: semantic ? "sparkles" : "magnifyingglass")
-                        .foregroundStyle(semantic ? Theme.accent : .secondary).font(.system(size: 12))
-                    TextField(semantic ? "\(DeepSearch.mode.title) search" : "Search", text: $model.query)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 13))
-                        .frame(width: 180)
-                        .focused($searchFocused)
-                        .accessibilityLabel("Search clipboard")
-                        .onChange(of: model.query) { _ in model.resetSelection() }
+                HStack(spacing: 8) {
+                    searchModePicker
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary).font(.system(size: 12))
+                        TextField("Search clips", text: $model.query)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                            .frame(width: 160)
+                            .focused($searchFocused)
+                            .accessibilityLabel("Search clipboard")
+                            .onChange(of: model.query) { _ in model.resetSelection() }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    // Visible focus affordance (BL-11): the field is first-responder on
+                    // summon, but the blinking caret alone isn't legible at a glance.
+                    .background(Color.primary.opacity(searchFocused ? 0.12 : 0.07), in: Capsule())
+                    .overlay(
+                        Capsule().strokeBorder(Theme.accent.opacity(searchFocused ? 0.65 : 0), lineWidth: 1.5)
+                    )
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                // Visible focus affordance (BL-11): the field is first-responder on
-                // summon, but the blinking caret alone isn't legible at a glance.
-                .background(Color.primary.opacity(searchFocused ? 0.12 : 0.07), in: Capsule())
-                .overlay(
-                    Capsule().strokeBorder(Theme.accent.opacity(searchFocused ? 0.65 : 0), lineWidth: 1.5)
-                )
             }
 
             Button {
@@ -145,6 +148,33 @@ struct ContentView: View {
             .foregroundStyle(active ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)
+    }
+
+    /// The visible search-mode switcher next to the search field (Exact / Smart /
+    /// Tag), so changing how search works is one click away — not buried in Settings.
+    private var searchModePicker: some View {
+        Menu {
+            Picker("Search mode", selection: $settings.searchMode) {
+                ForEach(SearchMode.allCases) { mode in
+                    Label("\(mode.title) — \(mode.blurb)", systemImage: mode.symbol).tag(mode)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: settings.searchMode.symbol).font(.system(size: 10))
+                Text(settings.searchMode.title).font(.system(size: 11, weight: .semibold))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).opacity(0.5)
+            }
+            .foregroundStyle(settings.searchMode == .exact ? Color.primary : Theme.accent)
+            .padding(.horizontal, 9).padding(.vertical, 6)
+            .background(Color.primary.opacity(0.07), in: Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Search mode — Exact, Smart, or Tag")
+        .accessibilityLabel("Search mode: \(settings.searchMode.title)")
     }
 
     // MARK: Cards

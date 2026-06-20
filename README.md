@@ -22,12 +22,14 @@ cloud.** Everything you copy stays on your Mac.
 
 ## Why Yank
 
-- **🔎 Search by meaning, on-device.** An on-device CoreML model finds clips by what
-  they *mean*, not just exact text — "that database query", "the refund email". No
-  network, no account.
+- **🔎 Smart search, on-device.** The default **Smart** mode shows your exact matches
+  first, then the semantically closest clips — find "that database query" by meaning
+  *and* still get the literal token you typed. Switch modes (Smart / Exact / Tag)
+  right from the pill next to the search field. No network, no account.
 - **🔒 Private, and provably so.** Nothing ever leaves your Mac. Clipboard content is
-  **encrypted at rest**, password managers are skipped, and being open source you can
-  read the source and confirm there are zero network calls. ([Why no sync →](PRIVACY.md))
+  **encrypted at rest** with a key bound to the **Secure Enclave** (where available),
+  password managers are skipped, and being open source you can read the source and
+  confirm there are zero network calls. ([Why no sync →](PRIVACY.md))
 - **🎨 17 themes, 3 layouts.** A clean Swiss greyscale, One Dark, Dracula, Tokyo Night,
   Catppuccin and more — follows your macOS Light/Dark appearance. Card strip, compact
   list, or a Spotlight-style palette with live preview.
@@ -91,8 +93,10 @@ concealed / auto-generated pasteboards) are skipped, and you can exclude any app
 
 Beyond exact substring, Yank searches **semantically**, fully on-device:
 
-- **Essence search** — embeds your query and ranks the whole history by meaning (full
-  vector cosine).
+- **Smart search (default)** — exact substring matches first, then the semantically
+  closest remaining clips (full vector cosine). You always get the obvious hit, plus
+  meaning-based suggestions below it.
+- **Exact** — literal case-insensitive substring only.
 - **Tag search** — every clip is classified at ingest into its top-5 of **100 preset
   tags**; a query maps to its nearest tag then an O(1) inverted-index lookup.
 

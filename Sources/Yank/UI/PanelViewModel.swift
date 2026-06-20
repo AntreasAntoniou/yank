@@ -105,8 +105,9 @@ final class PanelViewModel: ObservableObject {
             guard let tag = TagSpace.nearestTag(toQuery: q, embedder: embedder) else { return [] }
             let ids = Set(store.items(taggedWith: tag).map { $0.id })
             return scoped.filter { ids.contains($0.id) }
-        case .essence:
-            return SemanticRanker.essence(query: q, items: scoped, embedder: embedder)
+        case .smart:
+            // Exact substring hits first, then semantically-closest remaining.
+            return SemanticRanker.smart(query: q, items: scoped, embedder: embedder)
         }
     }
 
