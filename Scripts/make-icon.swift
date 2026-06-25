@@ -127,9 +127,6 @@ func drawIcon(size: CGFloat) -> NSImage {
         fillWithGlyphGradient(outline)
     }
 
-    ctx.saveGState()
-    ctx.translateBy(x: 0, y: 14)  // SVG: <g transform="translate(0,14)">
-
     // ===== BOLD V (top), exact polygon from the SVG =====
     let v = CGMutablePath()
     v.move(to: CGPoint(x: 146, y: 122))
@@ -140,26 +137,45 @@ func drawIcon(size: CGFloat) -> NSImage {
     v.addLine(to: CGPoint(x: 288, y: 256))
     v.addLine(to: CGPoint(x: 224, y: 256))
     v.closeSubpath()
-    fillWithGlyphGradient(v)
 
-    // ===== COMMAND looped-square (bottom) =====
+    // ===== COMMAND looped-square =====
     // One continuous stroked path (verbatim SVG arcs): straight bars between
     // four 270deg corner loops that bulge diagonally OUTWARD so the holes stay
     // open and legible at small sizes. r = 32, stroke-width 22.
-    let cmd = CGMutablePath()
-    cmd.move(to: CGPoint(x: 228, y: 324))
-    cmd.addLine(to: CGPoint(x: 284, y: 324))
-    svgArc(cmd, to: CGPoint(x: 312, y: 352), r: 32, largeArc: true, sweep: true)   // top-right loop
-    cmd.addLine(to: CGPoint(x: 312, y: 412))
-    svgArc(cmd, to: CGPoint(x: 284, y: 440), r: 32, largeArc: true, sweep: true)   // bottom-right loop
-    cmd.addLine(to: CGPoint(x: 228, y: 440))
-    svgArc(cmd, to: CGPoint(x: 200, y: 412), r: 32, largeArc: true, sweep: true)   // bottom-left loop
-    cmd.addLine(to: CGPoint(x: 200, y: 352))
-    svgArc(cmd, to: CGPoint(x: 228, y: 324), r: 32, largeArc: true, sweep: true)   // top-left loop
-    cmd.closeSubpath()
-    strokeWithGlyphGradient(cmd, width: 22)
+    let cmdStroke = CGMutablePath()
+    cmdStroke.move(to: CGPoint(x: 228, y: 324))
+    cmdStroke.addLine(to: CGPoint(x: 284, y: 324))
+    svgArc(cmdStroke, to: CGPoint(x: 312, y: 352), r: 32, largeArc: true, sweep: true)   // top-right loop
+    cmdStroke.addLine(to: CGPoint(x: 312, y: 412))
+    svgArc(cmdStroke, to: CGPoint(x: 284, y: 440), r: 32, largeArc: true, sweep: true)   // bottom-right loop
+    cmdStroke.addLine(to: CGPoint(x: 228, y: 440))
+    svgArc(cmdStroke, to: CGPoint(x: 200, y: 412), r: 32, largeArc: true, sweep: true)   // bottom-left loop
+    cmdStroke.addLine(to: CGPoint(x: 200, y: 352))
+    svgArc(cmdStroke, to: CGPoint(x: 228, y: 324), r: 32, largeArc: true, sweep: true)   // top-left loop
+    cmdStroke.closeSubpath()
+    let cmdWidth: CGFloat = 22
 
-    ctx.restoreGState()  // drop translate(0,14)
+    // ----- Layout: the raw SVG places the ⌘ very low, leaving it detached and
+    // bottom-heavy. Pull the ⌘ up toward the V so they read as ONE stacked
+    // glyph, then centre the whole unit in the tile (with a small upward optical
+    // nudge so the heavier ⌘ doesn't feel like it's sinking).
+    let pull: CGFloat = 20
+    var lift = CGAffineTransform(translationX: 0, y: -pull)
+    let cmdUp = cmdStroke.copy(using: &lift)!
+    let cmdOutline = cmdUp.copy(strokingWithWidth: cmdWidth, lineCap: .round,
+                                lineJoin: .round, miterLimit: 10)
+    let unit = v.boundingBoxOfPath.union(cmdOutline.boundingBoxOfPath)
+    let targetMidX: CGFloat = 256
+    let targetMidY: CGFloat = 248
+    let place = CGAffineTransform(translationX: targetMidX - unit.midX,
+                                  y: targetMidY - unit.midY)
+
+    ctx.saveGState()
+    ctx.concatenate(place)
+    fillWithGlyphGradient(v)
+    strokeWithGlyphGradient(cmdUp, width: cmdWidth)
+    ctx.restoreGState()
+
     ctx.restoreGState()  // drop viewBox transform
 
     image.unlockFocus()

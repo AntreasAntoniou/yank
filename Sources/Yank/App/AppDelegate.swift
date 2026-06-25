@@ -98,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Yank")
+            button.image = NSImage(systemSymbolName: "command", accessibilityDescription: "Yank")
             button.image?.isTemplate = true
         }
         statusMenu.delegate = self

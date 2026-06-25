@@ -129,7 +129,7 @@ struct ContentView: View {
     private var toolbar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
-                Image(systemName: "doc.on.clipboard.fill").foregroundStyle(Theme.accent)
+                Image(systemName: "command").foregroundStyle(Theme.accent)
                 Text(model.showSettings ? "Settings" : "Yank")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
             }
