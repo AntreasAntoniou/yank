@@ -8,9 +8,14 @@ inside the distributed `.app`, not Yank's own source code.
 ## On-device embedding models
 
 ### ogma-micro, ogma-small (Axiotic)
-- **License:** Creative Commons Attribution-NonCommercial 4.0 (CC-BY-NC-4.0).
-- **Attribution:** Derived with attribution to Jina AI (the `jina-embeddings`
-  family). See each model's `README.md` under `tools/models/`.
+- **License:** Creative Commons Attribution-NonCommercial 4.0 (CC-BY-NC-4.0):
+  https://creativecommons.org/licenses/by-nc/4.0/
+- **Required attribution (must be included in all uses, per CC-BY-NC-4.0 §3.a):**
+
+  > This model was trained via knowledge distillation from
+  > `jina-embeddings-v5-text-small` (https://huggingface.co/jinaai/jina-embeddings-v5-text-small)
+  > by Jina AI, licensed under CC-BY-NC-4.0.
+
 - **Implication:** The CoreML conversions of these models are bundled inside the
   distributed Yank binary. Under CC-BY-NC-4.0 the **weights may not be used for
   commercial purposes**. Yank's own code is MIT and unaffected; this restriction

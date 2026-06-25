@@ -64,8 +64,8 @@ struct ClipCardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabelText)
         .accessibilityValue(item.characterCountLabel)
-        .accessibilityHint(item.characterCountLabel)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityHint("Press Return to paste, Command-C to copy")
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     /// A spoken label combining the clip kind, its source app, and a short preview.

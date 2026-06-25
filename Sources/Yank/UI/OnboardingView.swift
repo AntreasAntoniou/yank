@@ -44,7 +44,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 10) {
-                Image(systemName: "doc.on.clipboard.fill")
+                Image(systemName: "command")
                     .font(.system(size: 44)).foregroundStyle(Theme.accent)
                 Text("Welcome to Yank").font(.system(size: 24, weight: .bold))
                 Text("Your clipboard history, one keystroke away.")

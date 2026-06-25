@@ -134,6 +134,10 @@ final class ClipboardMonitor {
         let name = "\(id.uuidString).png"
         let url = store.storeDirectory.appendingPathComponent(name)
         do { try png.write(to: url) } catch { return nil }
+        // Owner-only (0600): these are plaintext PNGs (possibly screenshots of
+        // password vaults / 2FA) and must not be group/other-readable.
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600], ofItemAtPath: url.path)
         // Best-effort: also write a downsampled thumbnail next to the original so
         // the SwiftUI card body decodes a small image instead of the full-res PNG
         // on every re-evaluation (audit BL-09/H8). The full-res PNG above is kept
@@ -158,6 +162,9 @@ final class ClipboardMonitor {
         else { return }
         CGImageDestinationAddImage(dest, thumb, nil)
         CGImageDestinationFinalize(dest)
+        // Owner-only (0600): the thumbnail is a plaintext derivative of the clip.
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 
     static func detectKind(for string: String) -> ClipKind {

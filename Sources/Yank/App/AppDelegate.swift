@@ -3,11 +3,30 @@ import SwiftUI
 import Carbon.HIToolbox
 import ServiceManagement
 
+/// Transient, observable paste-status surfaced in the bar. `AppDelegate.commit()`
+/// writes to this on every pick; `ContentView` renders it. Lets a blocked paste
+/// (Accessibility not granted) show a persistent, always-visible banner instead
+/// of failing silently, and gives a successful paste a brief confirmation so the
+/// two outcomes are distinguishable.
+@MainActor
+final class PasteStatus: ObservableObject {
+    /// When set, the bar shows a non-modal banner prompting the user to grant
+    /// Accessibility (or press ⌘V). Set on every blocked pick; never gated.
+    @Published var blockedMessage: String?
+    /// Bumped each time a paste actually fires (AX trusted) so the UI can flash a
+    /// brief success confirmation.
+    @Published var pasteConfirmToken: Int = 0
+    /// Invoked by the banner's "Open Settings" affordance — opens the
+    /// Accessibility pane (and may re-trigger the AX prompt).
+    var onOpenAccessibility: (() -> Void)?
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = ClipStore()
     private lazy var monitor = ClipboardMonitor(store: store)
     private lazy var model = PanelViewModel(store: store)
+    private let pasteStatus = PasteStatus()
     private let panel = FloatingPanel()
     private let hotKey = HotKey()
 
@@ -79,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Yank")
+            button.image = NSImage(systemSymbolName: "command", accessibilityDescription: "Yank")
             button.image?.isTemplate = true
         }
         statusMenu.delegate = self
@@ -156,7 +175,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard let self, self.isVisible, !self.isClosing else { return }
             self.hide(paste: false)
         }
-        panel.setContent { [model, store] in ContentView(model: model, store: store) }
+        pasteStatus.onOpenAccessibility = { [weak self] in self?.openAccessibilitySettings() }
+        panel.setContent { [model, store, pasteStatus] in
+            ContentView(model: model, store: store, pasteStatus: pasteStatus)
+        }
 
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.panel.isKeyWindow else { return event }
@@ -218,11 +240,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         monitor.suppressNextChange()
         Paster.writeToPasteboard(item, store: store, plain: plain)
         // The clip is now on the system pasteboard regardless. Only the ⌘V
-        // keystroke needs Accessibility — prompt once if it's missing.
+        // keystroke needs Accessibility.
         let canPaste = AXIsProcessTrusted()
-        if !canPaste && !didPromptAX {
-            didPromptAX = true
-            promptAccessibility()
+        if canPaste {
+            // Success: clear any stale guidance and flash a brief confirmation so
+            // a real paste is distinguishable from a silent no-op.
+            pasteStatus.blockedMessage = nil
+            pasteStatus.pasteConfirmToken &+= 1
+        } else {
+            // Blocked: the keystroke can't fire. Surface a persistent, non-modal
+            // banner on EVERY blocked pick (not gated by didPromptAX) so the user
+            // always gets feedback. Keep the SYSTEM prompt one-shot to avoid OS
+            // nagging.
+            pasteStatus.blockedMessage =
+                "Copied to clipboard — grant Accessibility to auto-paste, or press ⌘V"
+            if !didPromptAX {
+                didPromptAX = true
+                promptAccessibility()
+            }
         }
         hide(paste: canPaste)
     }
@@ -351,5 +386,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func promptAccessibility() {
         _ = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary)
+    }
+
+    /// Open the Accessibility privacy pane in System Settings, and also fire the
+    /// AX prompt so the user can grant the right then and there. Driven by the
+    /// in-bar banner's "Open Settings" affordance.
+    private func openAccessibilitySettings() {
+        promptAccessibility()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

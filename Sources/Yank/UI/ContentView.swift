@@ -5,14 +5,21 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var model: PanelViewModel
     @ObservedObject var store: ClipStore
+    /// Paste outcome surfaced by `AppDelegate.commit()`: a persistent banner when
+    /// auto-paste is blocked (no Accessibility), and a brief success flash when a
+    /// paste actually fires.
+    @ObservedObject var pasteStatus: PasteStatus
     @StateObject private var settings: AppSettings
     /// Drives first-responder focus into the search field on summon (BL-11/H4):
     /// the panel is non-activating, so nothing otherwise makes the field key.
     @FocusState private var searchFocused: Bool
+    /// Transient: shows a check briefly after a successful paste fires.
+    @State private var showPasteConfirm = false
 
-    init(model: PanelViewModel, store: ClipStore) {
+    init(model: PanelViewModel, store: ClipStore, pasteStatus: PasteStatus) {
         self.model = model
         self.store = store
+        self.pasteStatus = pasteStatus
         _settings = StateObject(wrappedValue: AppSettings(store: store))
     }
 
@@ -20,6 +27,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             toolbar
             Divider().opacity(0.5)
+            if let message = pasteStatus.blockedMessage { pasteBlockedBanner(message) }
             if let progress = store.indexing { indexingBar(progress) }
             if model.showSettings {
                 SettingsView(settings: settings, store: store)
@@ -38,6 +46,9 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Theme.t.border, lineWidth: 1)
         )
+        .overlay(alignment: .top) {
+            if showPasteConfirm { pasteConfirmFlash }
+        }
         .padding(.horizontal, 8)
         .padding(.top, 8)
         // Theme preset: tint drives every Theme.accent control; the forced scheme
@@ -57,6 +68,60 @@ struct ContentView: View {
         }
         .onAppear { DispatchQueue.main.async { searchFocused = !model.showSettings } }
         .onChange(of: settings.searchMode) { _ in model.resetSelection() }
+        // Brief success confirmation: a real paste bumps this token, so the flash
+        // makes a successful paste distinguishable from a silent no-op.
+        .onChange(of: pasteStatus.pasteConfirmToken) { _ in
+            withAnimation(.easeOut(duration: 0.15)) { showPasteConfirm = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                withAnimation(.easeIn(duration: 0.25)) { showPasteConfirm = false }
+            }
+        }
+    }
+
+    // MARK: Paste status
+
+    /// Persistent, non-modal banner shown on every blocked pick (Accessibility not
+    /// granted): the clip is on the clipboard but the ⌘V keystroke can't fire, so
+    /// this is the user's always-visible feedback + a one-tap path to fix it.
+    private func pasteBlockedBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 11)).foregroundStyle(Theme.accent)
+            Text(message)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            Button {
+                pasteStatus.onOpenAccessibility?()
+            } label: {
+                Text("Open Settings")
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Theme.accent, in: Capsule())
+                    .foregroundStyle(Color.white)
+            }
+            .buttonStyle(.plain)
+            .help("Open Privacy → Accessibility to grant auto-paste")
+        }
+        .padding(.horizontal, 16).padding(.vertical, 7)
+        .background(Theme.accent.opacity(0.10))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(message)
+    }
+
+    /// A subtle, transient check that flashes after a paste actually fires.
+    private var pasteConfirmFlash: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 11))
+            Text("Pasted").font(.system(size: 11, weight: .semibold))
+        }
+        .foregroundStyle(Color.white)
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(Theme.accent, in: Capsule())
+        .padding(.top, 14)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .allowsHitTesting(false)
     }
 
     // MARK: Toolbar
@@ -64,7 +129,7 @@ struct ContentView: View {
     private var toolbar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
-                Image(systemName: "doc.on.clipboard.fill").foregroundStyle(Theme.accent)
+                Image(systemName: "command").foregroundStyle(Theme.accent)
                 Text(model.showSettings ? "Settings" : "Yank")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
             }

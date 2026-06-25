@@ -21,6 +21,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# A public release must never ship the old brand name. Sweep any leftover
+# wrong-brand artifacts so no Ditto-named file can sit alongside the Yank DMG.
+rm -rf build/Ditto.app build/Ditto-*.dmg
+
 APP="build/Yank.app"
 ENTITLEMENTS="Scripts/Yank.entitlements"
 DEVID="${DEVID:-}"                 # Developer ID Application identity (empty = local/self-signed)
@@ -70,6 +74,10 @@ STAGE="build/dmg"
 rm -rf "$STAGE" "$DMG"
 mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/Yank.app"
+# Ship the license + attribution next to the app so a user who mounts the DMG
+# sees them (the bundled CC-BY-NC ogma models require this on redistribution).
+cp "LICENSE" "$STAGE/"
+cp "THIRD-PARTY-NOTICES.md" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "Yank $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$STAGE"

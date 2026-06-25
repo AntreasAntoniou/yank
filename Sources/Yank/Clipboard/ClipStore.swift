@@ -48,8 +48,20 @@ final class ClipStore: ObservableObject {
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Ditto", isDirectory: true)
         dir = base
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        db = Database(path: dir.appendingPathComponent("ditto.sqlite").path)
+        // Owner-only (0700): on a shared/multi-user Mac the store holds plaintext
+        // image clips and the SQLite DB, which must not be group/other-readable.
+        try? FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
+        // Defensively tighten an already-existing dir (created before this change
+        // or with a looser umask). Best-effort.
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o700], ofItemAtPath: dir.path)
+        let dbPath = dir.appendingPathComponent("ditto.sqlite").path
+        db = Database(path: dbPath)
+        // Owner-only (0600) for the DB file itself, best-effort.
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600], ofItemAtPath: dbPath)
         migrateLegacyJSONIfNeeded()
         items = db?.loadAll() ?? []
         repairKinds()

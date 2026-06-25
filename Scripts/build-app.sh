@@ -53,6 +53,13 @@ if ls "$ROOT"/tools/models/*.mlpackage >/dev/null 2>&1; then
     done
 fi
 
+# License + attribution. The bundled ogma CoreML models are CC-BY-NC and legally
+# require their license + attribution to travel with every redistribution, so the
+# files must live inside the app bundle itself.
+echo "▸ Bundling license + attribution…"
+cp "$ROOT/LICENSE" "$APP/Contents/Resources/"
+cp "$ROOT/THIRD-PARTY-NOTICES.md" "$APP/Contents/Resources/"
+
 # Code-sign the bundle. Prefer the stable, self-signed "Ditto Local Signing"
 # identity (created by Scripts/setup-signing.sh) so the macOS Accessibility grant
 # survives rebuilds — macOS keys the AX grant to code identity, and a stable
@@ -64,10 +71,10 @@ fi
 SIGN_ID="Ditto Local Signing"
 if security find-identity -p codesigning 2>/dev/null | grep -qF "$SIGN_ID"; then
     echo "▸ Signing (stable: $SIGN_ID)…"
-    codesign --force --deep --sign "$SIGN_ID" "$APP" 2>/dev/null || echo "  (codesign skipped)"
+    codesign --force --sign "$SIGN_ID" "$APP" 2>/dev/null || echo "  (codesign skipped)"
 else
     echo "▸ Signing (ad-hoc — run Scripts/setup-signing.sh for a stable identity)…"
-    codesign --force --deep --sign - "$APP" 2>/dev/null || echo "  (codesign skipped)"
+    codesign --force --sign - "$APP" 2>/dev/null || echo "  (codesign skipped)"
 fi
 
 echo "✓ Built $APP"

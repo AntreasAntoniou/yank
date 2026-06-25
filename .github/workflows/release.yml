@@ -12,8 +12,12 @@ name: Release
 #   APPLE_TEAM_ID         your 10-char Team ID
 #   APPLE_APP_PASSWORD    an app-specific password from appleid.apple.com
 #
-# NOTE: the bundled ogma CoreML models are gitignored. For CI to build a working
-# app, commit them via Git LFS (recommended) or have a prior step restore them.
+# NOTE: the bundled ogma CoreML models are gitignored (.mlpackage files are large
+# binaries produced locally). For CI to build a working app, the "Restore on-device
+# models" step below downloads the public ogma PyTorch weights from HuggingFace and
+# converts them to CoreML via tools/restore-models.sh — BEFORE Scripts/release.sh
+# runs — so the released app keeps its on-device semantic-search feature instead of
+# silently falling back to the weak HashingEmbedder.
 
 on:
   push:
@@ -27,13 +31,36 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python (for CoreML conversion)
+        uses: actions/setup-python@v5
         with:
-          lfs: true   # bundled models live in Git LFS (see NOTE above)
+          python-version: '3.11'
+
+      # Cache the restored/converted models keyed on the conversion inputs, so we
+      # only re-download from HuggingFace + re-convert when the tooling changes.
+      - name: Cache on-device models
+        uses: actions/cache@v4
+        with:
+          path: tools/models
+          key: ogma-models-${{ hashFiles('tools/convert_ogma.py', 'tools/_dl.py', 'tools/restore-models.sh', 'tools/_compat.py', 'tools/requirements.txt') }}
+          restore-keys: |
+            ogma-models-
+
+      - name: Restore on-device models
+        env:
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python3 -m pip install --upgrade pip
+          # Conversion stack centralized in tools/requirements.txt (also exercised
+          # cert-free by .github/workflows/models.yml).
+          python3 -m pip install -r tools/requirements.txt
+          bash tools/restore-models.sh
 
       - name: Verify bundled models are present
         run: |
           if ! ls tools/models/*.mlpackage >/dev/null 2>&1; then
-            echo "::error::No models in tools/models/*.mlpackage. Commit them via Git LFS before tagging a release."
+            echo "::error::No models in tools/models/*.mlpackage after restore. See tools/restore-models.sh."
             exit 1
           fi
 
