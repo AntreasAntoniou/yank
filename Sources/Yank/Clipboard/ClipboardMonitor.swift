@@ -1,6 +1,26 @@
 import AppKit
+import CryptoKit
 import ImageIO
 import UniformTypeIdentifiers
+
+/// The minimal set of pasteboard reads `capture()` performs. `NSPasteboard`
+/// satisfies this as-is; tests provide a fake so capture can run headless
+/// without touching the system pasteboard. Production behaviour is unchanged —
+/// `poll()` still hands `NSPasteboard.general` straight through.
+@MainActor
+protocol PasteboardReading: AnyObject {
+    func readObjects(forClasses classes: [AnyClass], options: [NSPasteboard.ReadingOptionKey: Any]?) -> [Any]?
+    func canReadObject(forClasses classes: [AnyClass], options: [NSPasteboard.ReadingOptionKey: Any]?) -> Bool
+    func string(forType type: NSPasteboard.PasteboardType) -> String?
+    func data(forType type: NSPasteboard.PasteboardType) -> Data?
+    /// The image on the pasteboard, if any. On `NSPasteboard` this is
+    /// `NSImage(pasteboard:)`; a fake returns a directly-supplied image.
+    func readImage() -> NSImage?
+}
+
+extension NSPasteboard: PasteboardReading {
+    func readImage() -> NSImage? { NSImage(pasteboard: self) }
+}
 
 /// Polls `NSPasteboard.general` and turns new contents into `ClipItem`s.
 @MainActor
@@ -97,7 +117,11 @@ final class ClipboardMonitor {
         return types.contains(where: privateTypes.contains)
     }
 
-    private func capture(from pb: NSPasteboard) -> ClipItem? {
+    /// Turn the current pasteboard contents into a `ClipItem`, prioritising
+    /// file > image > text. Parameterised over `PasteboardReading` so tests can
+    /// exercise it against a fake; production passes `NSPasteboard.general`.
+    /// `internal` (not `private`) so `@testable` capture tests can drive it.
+    func capture(from pb: PasteboardReading) -> ClipItem? {
         // 1. Files take priority — drag/copy of Finder items.
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
            let url = urls.first, url.isFileURL {
@@ -107,11 +131,12 @@ final class ClipboardMonitor {
         }
 
         // 2. Images.
-        if let image = NSImage(pasteboard: pb), pb.canReadObject(forClasses: [NSImage.self], options: nil) {
+        if let image = pb.readImage(), pb.canReadObject(forClasses: [NSImage.self], options: nil) {
             let item = ClipItem(kind: .image, text: "Image \(Int(image.size.width))×\(Int(image.size.height))")
             // If we can't persist the image, the clip would be unpastable — drop it.
-            guard let file = persistImage(image, id: item.id) else { return nil }
-            item.payloadFile = file
+            guard let persisted = persistImage(image) else { return nil }
+            item.payloadFile = persisted.file
+            item.imageHash = persisted.hash
             return item
         }
 
@@ -127,29 +152,47 @@ final class ClipboardMonitor {
         return nil
     }
 
-    private func persistImage(_ image: NSImage, id: UUID) -> String? {
+    /// Persist the image as a SEALED (`enc1:`-marked AES-GCM) PNG named
+    /// deterministically from the SHA-256 of its PLAINTEXT bytes (`<hash>.png`),
+    /// returning the relative filename and the hex hash. The hash is taken over
+    /// the plaintext png BEFORE sealing, so T2's content-addressed dedup is
+    /// unchanged by encryption. When a payload for that hash already exists it is
+    /// reused as-is. Returns `nil` on encode/seal/write failure.
+    private func persistImage(_ image: NSImage) -> (file: String, hash: String)? {
         guard let tiff = image.tiffRepresentation,
               let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return nil }
-        let name = "\(id.uuidString).png"
+        // Hash the PLAINTEXT png; encryption layers on top of this seam (hash,
+        // THEN seal) so dedup is identical to the pre-encryption build.
+        let hash = SHA256.hash(data: png).map { String(format: "%02x", $0) }.joined()
+        let name = "\(hash).png"
         let url = store.storeDirectory.appendingPathComponent(name)
-        do { try png.write(to: url) } catch { return nil }
-        // Owner-only (0600): these are plaintext PNGs (possibly screenshots of
-        // password vaults / 2FA) and must not be group/other-readable.
+        // Reuse an existing payload for this content rather than rewriting it.
+        if FileManager.default.fileExists(atPath: url.path) { return (name, hash) }
+        // Encrypt at rest: seal the PNG bytes so the on-disk file starts with the
+        // `enc1:` marker, not PNG magic. Read sites (Paster / ClipCardView /
+        // ContentView preview) decrypt via Crypto.open.
+        guard let sealed = Crypto.seal(png), Crypto.isSealed(sealed) else { return nil }
+        // Atomic write (temp-then-rename): an interrupted capture can never leave a
+        // torn payload that is neither valid PNG nor a complete `enc1:` ciphertext.
+        do { try sealed.write(to: url, options: .atomic) } catch { return nil }
+        // Owner-only (0600): even sealed, these payloads (possibly screenshots of
+        // password vaults / 2FA) must not be group/other-readable.
         try? FileManager.default.setAttributes(
             [.posixPermissions: 0o600], ofItemAtPath: url.path)
         // Best-effort: also write a downsampled thumbnail next to the original so
         // the SwiftUI card body decodes a small image instead of the full-res PNG
         // on every re-evaluation (audit BL-09/H8). The full-res PNG above is kept
         // for paste; if thumbnailing fails we simply skip it and the card falls
-        // back to the original.
-        Self.writeThumbnail(from: png, to: store.storeDirectory.appendingPathComponent("\(id.uuidString)-thumb.png"))
-        return name
+        // back to the original. Thumbnail stem matches the payload so
+        // cachedImage's `<stem>-thumb.png` convention still resolves.
+        Self.writeThumbnail(from: png, to: store.storeDirectory.appendingPathComponent("\(hash)-thumb.png"))
+        return (name, hash)
     }
 
     /// Downsample `pngData` to a thumbnail no larger than `maxPixelSize` on its
-    /// longest edge and write it as PNG to `url`. Best-effort: any failure is
-    /// silently ignored.
+    /// longest edge, SEAL it (`enc1:` marker), and write the ciphertext to `url`.
+    /// Best-effort: any failure is silently ignored.
     private static func writeThumbnail(from pngData: Data, to url: URL, maxPixelSize: Int = 512) {
         guard let source = CGImageSourceCreateWithData(pngData as CFData, nil) else { return }
         let options: [CFString: Any] = [
@@ -157,12 +200,17 @@ final class ClipboardMonitor {
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
         ]
+        // Render the thumbnail into in-memory PNG bytes first so we can seal it
+        // before it hits disk (a URL-based destination would write plaintext).
+        let buffer = NSMutableData()
         guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
-              let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
+              let dest = CGImageDestinationCreateWithData(buffer, UTType.png.identifier as CFString, 1, nil)
         else { return }
         CGImageDestinationAddImage(dest, thumb, nil)
-        CGImageDestinationFinalize(dest)
-        // Owner-only (0600): the thumbnail is a plaintext derivative of the clip.
+        guard CGImageDestinationFinalize(dest),
+              let sealed = Crypto.seal(buffer as Data), Crypto.isSealed(sealed),
+              (try? sealed.write(to: url, options: .atomic)) != nil else { return }
+        // Owner-only (0600): the thumbnail is an (encrypted) derivative of the clip.
         try? FileManager.default.setAttributes(
             [.posixPermissions: 0o600], ofItemAtPath: url.path)
     }

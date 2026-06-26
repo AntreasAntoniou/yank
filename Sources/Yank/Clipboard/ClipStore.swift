@@ -67,6 +67,7 @@ final class ClipStore: ObservableObject {
         repairKinds()
         encryptExistingRowsIfNeeded()
         reKeyToSecureEnclaveIfNeeded()
+        encryptImagePayloadsIfNeeded()
         sortStable()
         rebuildTagIndex()
         sweepOrphanPayloads()
@@ -94,6 +95,33 @@ final class ClipStore: ObservableObject {
         for item in items { db?.insert(item) }
         db?.vacuum()   // purge stale plaintext from free pages
         UserDefaults.standard.set(true, forKey: key)
+    }
+
+    /// One-time, best-effort: seal every on-disk image payload + thumbnail that is
+    /// still plaintext, so at-rest bytes carry the `enc1:` marker instead of PNG
+    /// magic. New captures are already sealed by ClipboardMonitor.persistImage;
+    /// this upgrades PNGs written before encryption. Non-destructive: any `*.png`
+    /// already carrying the marker is skipped, so the pass is idempotent and safe
+    /// to re-run if interrupted (the read path's Crypto.open still handles any
+    /// not-yet-sealed file). The overwrite is atomic (write-temp-then-rename), so
+    /// an interrupted/failed write can never leave a torn payload that is neither
+    /// valid PNG nor a complete `enc1:` ciphertext — the original plaintext stays
+    /// intact and the pass simply re-runs next launch. Filename-based, so T2's `<hash>.png` / `<hash>-thumb.png`
+    /// naming and sweepOrphanPayloads/delete paths are unaffected. Gated by a flag.
+    private func encryptImagePayloadsIfNeeded() {
+        let flag = "imagesEncryptedV1"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        if let entries = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: nil) {
+            for url in entries where url.pathExtension.lowercased() == "png" {
+                guard let raw = try? Data(contentsOf: url), !Crypto.isSealed(raw),
+                      let sealed = Crypto.seal(raw), Crypto.isSealed(sealed) else { continue }
+                do { try sealed.write(to: url, options: .atomic) } catch { continue }
+                try? FileManager.default.setAttributes(
+                    [.posixPermissions: 0o600], ofItemAtPath: url.path)
+            }
+        }
+        UserDefaults.standard.set(true, forKey: flag)
     }
 
     /// Heal stored rows: (1) re-derive each text-bearing clip's kind from

@@ -26,11 +26,11 @@ cloud.** Everything you copy stays on your Mac.
   first, then the semantically closest clips — find "that database query" by meaning
   *and* still get the literal token you typed. Switch modes (Smart / Exact / Tag)
   right from the pill next to the search field. No network, no account.
-- **🔒 Private, and provably so.** Nothing ever leaves your Mac. Text clips (and their
-  metadata) are **encrypted at rest** with a key bound to the **Secure Enclave** (where
-  available); image clips are currently stored as plaintext PNGs — encrypting them is on
-  the [roadmap](PRIVACY.md). Password managers are skipped, and being open source you can
-  read the source and confirm there are zero network calls. ([Why no sync →](PRIVACY.md))
+- **🔒 Private, and provably so.** Nothing ever leaves your Mac. Every clip is
+  **encrypted at rest** with a key bound to the **Secure Enclave** (where available) —
+  text, rich text and metadata in the database, and image clips and their thumbnails on
+  disk. Password managers are skipped, and being open source you can read the source and
+  confirm there are zero network calls. ([Why no sync →](PRIVACY.md))
 - **🎨 17 themes, 3 layouts.** A clean Swiss greyscale, One Dark, Dracula, Tokyo Night,
   Catppuccin and more — follows your macOS Light/Dark appearance. Card strip, compact
   list, or a Spotlight-style palette with live preview.
@@ -85,8 +85,8 @@ Other targets: `make app` (build `build/Yank.app`) · `make install` (copy to /A
 
 ## Privacy
 
-Everything is stored **locally**; text clips are **encrypted at rest** (image clips are
-plaintext PNGs for now — see PRIVACY.md). Yank makes no network requests and has no
+Everything is stored **locally** and **encrypted at rest** — text clips in the database
+and image clips (plus their thumbnails) on disk (see PRIVACY.md). Yank makes no network requests and has no
 telemetry, analytics, or account. Password managers (transient / concealed /
 auto-generated pasteboards) are skipped, and you can exclude any app. See
 [PRIVACY.md](PRIVACY.md) — including **why there is, and will be, no cloud sync**.

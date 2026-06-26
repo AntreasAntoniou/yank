@@ -166,7 +166,7 @@ struct SettingsView: View {
                         .disabled(settings.searchMode == .exact)
                     }
                     embedderStatus
-                    Text("Smart = exact matches first, then by meaning · Exact = literal words · Tag = by auto category. You can also switch modes from the pill next to the search field. Models run on-device (CoreML).")
+                    Text("Smart = clips containing exactly what you typed first, then the closest in meaning · Exact = only clips containing the typed text, ignoring case · Tag = clips in the auto category (of 100) closest to your query. You can also switch modes from the pill next to the search field. Models run on-device (CoreML).")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
 

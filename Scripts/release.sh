@@ -21,6 +21,29 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+say() { printf '\n\033[1;36m▸ %s\033[0m\n' "$*"; }
+warn() { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
+
+# Publish guard: the Homebrew cask ships an all-zero PLACEHOLDER sha256 that is
+# meant to be replaced with the RELEASED DMG's sha256 at release time (this
+# script packages the DMG; CI's "Compute DMG checksum" step prints that hash —
+# see .github/workflows/release.yml). Refuse to cut a release while the cask
+# still carries the placeholder, so a zero-sha (= unverifiable) install can never
+# be published. A real (non-zero) sha passes this check untouched. Set
+# ALLOW_PLACEHOLDER_SHA=1 only for a deliberate dry run that won't be published.
+CASK="Casks/yank.rb"
+ZERO_SHA="0000000000000000000000000000000000000000000000000000000000000000"
+if [[ -f "$CASK" ]] && grep -q "sha256 \"$ZERO_SHA\"" "$CASK"; then
+    if [[ "${ALLOW_PLACEHOLDER_SHA:-}" == "1" ]]; then
+        warn "$CASK still has the all-zero placeholder sha256 (ALLOW_PLACEHOLDER_SHA=1 — dry run only, DO NOT publish)."
+    else
+        printf '\033[1;31m✗ %s\033[0m\n' "$CASK still has the all-zero placeholder sha256." >&2
+        printf '   %s\n' "Fill it with the released DMG's sha256 before releasing (CI prints it; see release.yml)." >&2
+        printf '   %s\n' "For a deliberate non-publishing dry run, set ALLOW_PLACEHOLDER_SHA=1." >&2
+        exit 1
+    fi
+fi
+
 # A public release must never ship the old brand name. Sweep any leftover
 # wrong-brand artifacts so no Ditto-named file can sit alongside the Yank DMG.
 rm -rf build/Ditto.app build/Ditto-*.dmg
@@ -29,9 +52,6 @@ APP="build/Yank.app"
 ENTITLEMENTS="Scripts/Yank.entitlements"
 DEVID="${DEVID:-}"                 # Developer ID Application identity (empty = local/self-signed)
 NOTARY_PROFILE="${NOTARY_PROFILE:-}"   # notarytool keychain profile (empty = skip notarization)
-
-say() { printf '\n\033[1;36m▸ %s\033[0m\n' "$*"; }
-warn() { printf '\033[1;33m⚠ %s\033[0m\n' "$*"; }
 
 # 1. Build the .app (build-app.sh bundles models + tokenizers and does a base sign).
 say "Building Yank.app…"
