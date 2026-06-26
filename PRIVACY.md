@@ -10,8 +10,8 @@ stored **locally** on your Mac, under:
 
 ```
 ~/Library/Application Support/Ditto/
-  ditto.sqlite        clipboard history (text, links, colors, file references)
-  *.png               image clips and their thumbnails
+  ditto.sqlite        clipboard history (text, links, colors, file references), encrypted
+  *.png               image clips and their thumbnails, encrypted at rest
 ```
 
 Semantic-search embeddings are computed **on-device** (Apple CoreML) and stored in
@@ -20,16 +20,20 @@ transmitted anywhere.
 
 ## Encryption
 
-Clip **content** (text, rich text, file paths, colors) is encrypted at rest with
-AES-GCM. The encryption key is bound to your Mac's **Secure Enclave** where one is
-present — the key is derived inside the Enclave and its material can never be
-extracted from the chip, so copying the database (or the keychain) to another
-machine is useless, and no Touch ID prompt is required. On Macs without a Secure
-Enclave the key lives in your login Keychain.
+Everything Yank persists is encrypted at rest with **AES-GCM**: clip **content**
+(text, rich text, file paths, colors) in the database, and **image clips and their
+thumbnails** as sealed payload files on disk. Sealed values carry an `enc1:` marker;
+opening is non-destructive and falls back gracefully, so a re-key never loses data.
+The encryption key is bound to your Mac's **Secure Enclave** where one is present —
+the key is derived inside the Enclave and its material can never be extracted from
+the chip, so copying the database (or the payload files) to another machine is
+useless, and no Touch ID prompt is required. On Macs without a Secure Enclave the key
+lives in your login Keychain.
 
-Honest caveat: **image clips are currently stored as PNG files on disk and are not
-yet encrypted** (encrypting image payloads is on the roadmap). Treat the storage
-folder as sensitive, and use the exclusion list for apps where you copy secrets.
+The only data that is *not* encrypted is what cannot be: the live system pasteboard
+and the in-memory copy of the clip you are pasting, which are plaintext by necessity
+while in use. Nothing Yank writes to disk is stored in the clear. Still, treat the
+storage folder as sensitive and use the exclusion list for apps where you copy secrets.
 
 ## What Yank does NOT do
 
@@ -104,4 +108,4 @@ impose, and not data we ever hold.
 Any future change to this policy will appear in this file in the public repository,
 with the change visible in the Git history.
 
-_Last updated: 2026-06-19._
+_Last updated: 2026-06-25._

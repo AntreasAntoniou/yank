@@ -17,8 +17,11 @@ enum Paster {
 
         switch item.kind {
         case .image:
+            // Payloads are encrypted at rest (enc1: marker): read + decrypt.
             if let file = item.payloadFile,
-               let image = NSImage(contentsOf: store.storeDirectory.appendingPathComponent(file)) {
+               let stored = try? Data(contentsOf: store.storeDirectory.appendingPathComponent(file)),
+               let png = Crypto.open(stored),
+               let image = NSImage(data: png) {
                 pb.writeObjects([image])
             }
         case .file:

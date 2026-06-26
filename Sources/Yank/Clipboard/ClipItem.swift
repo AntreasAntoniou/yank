@@ -51,6 +51,10 @@ final class ClipItem: Codable, Identifiable {
     var rtf: Data?
     /// Relative filename (inside the store directory) for binary payloads.
     var payloadFile: String?
+    /// SHA-256 (hex) of the plaintext PNG bytes for `.image` clips. Drives
+    /// content-based dedup so byte-identical images collapse to one entry.
+    /// `nil` for legacy items captured before content hashing existed.
+    var imageHash: String?
     /// Absolute file path for `.file` clips.
     var filePath: String?
     /// Hex string for `.color` clips, e.g. "#FF8800".
@@ -98,7 +102,7 @@ final class ClipItem: Codable, Identifiable {
     // MARK: Codable
 
     private enum CodingKeys: String, CodingKey {
-        case id, kind, text, rtf, payloadFile, filePath, colorHex
+        case id, kind, text, rtf, payloadFile, imageHash, filePath, colorHex
         case createdAt, lastUsedAt, pinned, sourceApp, useCount
         case embeddings, vector, tagIDs, vectorModel
     }
@@ -114,6 +118,7 @@ final class ClipItem: Codable, Identifiable {
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? ""
         rtf = try c.decodeIfPresent(Data.self, forKey: .rtf)
         payloadFile = try c.decodeIfPresent(String.self, forKey: .payloadFile)
+        imageHash = try c.decodeIfPresent(String.self, forKey: .imageHash)
         filePath = try c.decodeIfPresent(String.self, forKey: .filePath)
         colorHex = try c.decodeIfPresent(String.self, forKey: .colorHex)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
@@ -154,7 +159,7 @@ final class ClipItem: Codable, Identifiable {
     /// A stable signature used to deduplicate consecutive identical copies.
     var signature: String {
         switch kind {
-        case .image: return "img:" + (payloadFile ?? text)
+        case .image: return "img:" + (imageHash ?? payloadFile ?? text)
         case .file:  return "file:" + (filePath ?? text)
         case .color: return "color:" + (colorHex ?? text)
         default:     return "text:" + text

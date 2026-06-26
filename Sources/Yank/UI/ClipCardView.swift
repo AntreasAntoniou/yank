@@ -27,7 +27,12 @@ struct ClipCardView: View {
         let name = useThumb ? thumbName : file
         if let cached = Self.imageCache.object(forKey: name as NSString) { return cached }
         let url = useThumb ? thumbURL : storeDir.appendingPathComponent(file)
-        guard let image = NSImage(contentsOf: url) else { return nil }
+        // Payloads (and their thumbnails) are sealed at rest — read the bytes,
+        // decrypt via Crypto.open, then decode. Legacy plaintext PNGs pass
+        // through Crypto.open untouched, so old histories still render.
+        guard let stored = try? Data(contentsOf: url),
+              let decoded = Crypto.open(stored),
+              let image = NSImage(data: decoded) else { return nil }
         Self.imageCache.setObject(image, forKey: name as NSString)
         return image
     }

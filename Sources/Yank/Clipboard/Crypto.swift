@@ -77,6 +77,15 @@ enum Crypto {
         return opened
     }
 
+    /// True when `data` already begins with the `enc1:` seal marker, i.e. it was
+    /// produced by `seal(_:Data?)` and must be `open`-ed before use. Read-only:
+    /// lets callers (the image-encryption migration) skip already-sealed payloads
+    /// without round-tripping through `open`. Does not affect seal/open semantics.
+    static func isSealed(_ data: Data?) -> Bool {
+        guard let data else { return false }
+        return data.starts(with: markerData)
+    }
+
     // MARK: Key resolution
 
     private static func resolveKey() -> SymmetricKey {
